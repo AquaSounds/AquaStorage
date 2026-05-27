@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="AquaStorage.Views.PathDetailWindow"
+        Title="Path Manager" Width="600" Height="400"
+        WindowStartupLocation="CenterOwner">
+    <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" Margin="10">
+        <ListBox x:Name="PathListBox" Grid.Row="0" Grid.ColumnSpan="2">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding}"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"
+                                   Margin="4 0"/>
+                        <Button x:Name="DeleteBtn" Grid.Column="1"
+                                Content="Remove" Width="80" Margin="4 0"
+                                Click="DeleteBtn_Click"/>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBox x:Name="NewPathTextBox" Grid.Row="1" Grid.Column="0"
+                 Watermark="Enter new path to add"/>
+
+        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="AddBtn" Content="Add" Width="80"
+                    Click="AddBtn_Click"/>
+            <Button x:Name="BtnClose" Content="Close" Width="80"
+                    Click="BtnClose_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:AquaStorage.Views"
+             xmlns:avalonia="https://github.com/projektanker/icons.avalonia"
+             mc:Ignorable="d"
+             d:DesignWidth="400" d:DesignHeight="600"
+             x:Class="AquaStorage.Views.FileManager">
+
+    <Border Margin="10" CornerRadius="10">
+        <Grid RowDefinitions="Auto,*">
+            <TextBlock Text="File Manager" FontWeight="Bold" FontSize="16" Margin="15,8"
+                       HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+            <Border Grid.Row="1" CornerRadius="10" Margin="5">
+                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
+                      ColumnDefinitions="*,Auto"
+                      RowSpacing="8" ColumnSpacing="8" Margin="10">
+
+                    <!-- Add Folder button -->
+                    <Button x:Name="BtnAdd" Grid.Row="0" Grid.Column="0"
+                            Click="BtnAdd_Click" HorizontalAlignment="Stretch">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <avalonia:Icon Value="fa-solid fa-folder-plus" FontSize="14"/>
+                            <TextBlock Text="Add Folder" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Detail button -->
+                    <Button x:Name="BtnDetail" Grid.Row="0" Grid.Column="1"
+                            Click="BtnDetail_Click" Width="80">
+                        <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
+                            <avalonia:Icon Value="fa-solid fa-list" FontSize="14"/>
+                            <TextBlock Text="Detail" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Loading progress bar -->
+                    <ProgressBar x:Name="LoadingBar" Grid.Row="1" Grid.ColumnSpan="2"
+                                 Height="6" CornerRadius="3" IsVisible="False"/>
+
+                    <!-- Tip text -->
+                    <TextBlock x:Name="TipTextBlock" Grid.Row="2" Grid.ColumnSpan="2"
+                               Margin="4,0" IsVisible="False" HorizontalAlignment="Left"/>
+
+                    <!-- File tree -->
+                    <TreeView x:Name="TreeFiles" Grid.Row="3" Grid.ColumnSpan="2"
+                              Margin="0,4,0,0"
+                              SelectionChanged="TreeFiles_OnSelectionChanged"/>
+
+                    <!-- Waveform display -->
+                    <local:WaveForm Grid.Row="4" Grid.ColumnSpan="2"
+                                    Height="100" x:Name="WaveForm"/>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

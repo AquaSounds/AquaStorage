@@ -1,0 +1,16 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AquaStorage", "AquaStorage\AquaStorage.csproj", "{8128B4ED-A03E-4031-BFAF-A7B1A8D7B333}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8128B4ED-A03E-4031-BFAF-A7B1A8D7B333}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8128B4ED-A03E-4031-BFAF-A7B1A8D7B333}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8128B4ED-A03E-4031-BFAF-A7B1A8D7B333}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8128B4ED-A03E-4031-BFAF-A7B1A8D7B333}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
