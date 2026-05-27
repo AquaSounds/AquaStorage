@@ -1,7 +1,11 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Threading;
+using AquaStorage.Helpers;
 using NAudio.Wave;
+using System;
 using System.Collections.Generic;
 
 namespace AquaStorage.Views;
@@ -11,10 +15,32 @@ public partial class WaveForm : UserControl
     private float[]? _leftChannel;
     private float[]? _rightChannel;
 
+    private AudioPlayerService? _player;
+    private DispatcherTimer? _positionTimer;
+    private double _playbackPosition; // 0..1
+    private bool _isDragging;
+    private bool _isHoveringNear;
+
+    private const double LineHitZone = 20.0;
+
+    public AudioPlayerService? Player
+    {
+        get => _player;
+        set
+        {
+            _player = value;
+            if (value != null && _leftChannel != null)
+                StartPositionTimer();
+            else
+                StopPositionTimer();
+        }
+    }
+
     public WaveForm()
     {
         InitializeComponent();
         IsHitTestVisible = true;
+        ClipToBounds = true;
     }
 
     public void RenderWaveform(string filePath)
@@ -25,13 +51,24 @@ public partial class WaveForm : UserControl
             var (left, right) = LoadStereoData(reader);
             _leftChannel = left;
             _rightChannel = right;
+            _playbackPosition = 0;
             InvalidateVisual();
+            if (_player != null) StartPositionTimer();
         }
         catch
         {
             _leftChannel = null;
             _rightChannel = null;
         }
+    }
+
+    public void Clear()
+    {
+        _leftChannel = null;
+        _rightChannel = null;
+        _playbackPosition = 0;
+        StopPositionTimer();
+        InvalidateVisual();
     }
 
     private (float[] left, float[] right) LoadStereoData(AudioFileReader reader)
@@ -72,6 +109,8 @@ public partial class WaveForm : UserControl
     public override void Render(DrawingContext context)
     {
         base.Render(context);
+        
+        context.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, Bounds.Width, Bounds.Height));
 
         if (_leftChannel == null || _rightChannel == null)
             return;
@@ -87,6 +126,16 @@ public partial class WaveForm : UserControl
 
         DrawChannel(context, _leftChannel, stepX, halfH / 2, ampScale, pen);
         DrawChannel(context, _rightChannel, stepX, halfH + halfH / 2, ampScale, pen);
+
+        // Playback position line
+        if (_player is { HasFile: true })
+        {
+            double x = _playbackPosition * w;
+            double opacity = (_isHoveringNear || _isDragging) ? 1.0 : 0.5;
+            var lineBrush = new SolidColorBrush(Colors.White, opacity);
+            var linePen = new Pen(lineBrush, _isDragging ? 2.0 : 1.5);
+            context.DrawLine(linePen, new Point(x, 0), new Point(x, h));
+        }
     }
 
     private void DrawChannel(DrawingContext ctx, float[] data, double stepX, double midY, double ampScale, Pen pen)
@@ -112,10 +161,90 @@ public partial class WaveForm : UserControl
         ctx.DrawGeometry(null, pen, geometry);
     }
 
-    public void Clear()
+    #region Position timer & seeking
+
+    private void StartPositionTimer()
     {
-        _leftChannel = null;
-        _rightChannel = null;
+        StopPositionTimer();
+        _positionTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        _positionTimer.Tick += (_, _) =>
+        {
+            if (_isDragging || _player == null || _leftChannel == null) return;
+            _playbackPosition = _player.PlaybackPosition;
+            InvalidateVisual();
+        };
+        _positionTimer.Start();
+    }
+
+    private void StopPositionTimer()
+    {
+        _positionTimer?.Stop();
+        _positionTimer = null;
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        if (_player == null || _leftChannel == null) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if (!_isHoveringNear) return;
+
+        _isDragging = true;
+        UpdateDragPosition(e.GetPosition(this).X);
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        var x = e.GetPosition(this).X;
+
+        if (_isDragging)
+        {
+            UpdateDragPosition(x);
+            return;
+        }
+
+        // Hover detection
+        double lineX = _playbackPosition * Bounds.Width;
+        bool wasHovering = _isHoveringNear;
+        _isHoveringNear = Math.Abs(x - lineX) <= LineHitZone;
+        if (_isHoveringNear != wasHovering)
+            InvalidateVisual();
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        if (!_isDragging) return;
+        _isDragging = false;
+
+        double w = Bounds.Width;
+        if (w > 0)
+        {
+            double fraction = Math.Clamp(e.GetPosition(this).X / w, 0, 1);
+            _playbackPosition = fraction;
+            _player?.Seek(fraction);
+        }
         InvalidateVisual();
     }
+
+    protected override void OnPointerExited(PointerEventArgs e)
+    {
+        base.OnPointerExited(e);
+        if (!_isDragging && _isHoveringNear)
+        {
+            _isHoveringNear = false;
+            InvalidateVisual();
+        }
+    }
+
+    private void UpdateDragPosition(double x)
+    {
+        double w = Bounds.Width;
+        if (w <= 0) return;
+        _playbackPosition = Math.Clamp(x / w, 0, 1);
+        InvalidateVisual();
+    }
+
+    #endregion
 }

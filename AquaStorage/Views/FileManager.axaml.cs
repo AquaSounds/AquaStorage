@@ -47,6 +47,7 @@ public partial class FileManager : UserControl
         InitializeComponent();
         _loadingBar = this.FindControl<ProgressBar>("LoadingBar");
         _tipTextBlock = this.FindControl<TextBlock>("TipTextBlock");
+        WaveForm.Player = _audioPlayer;
 
         if (_loadingBar != null)
         {
