@@ -14,6 +14,5 @@
                 <ColorPaletteResources x:Key="Light" Accent="{DynamicResource AccentPrimary}"/>
             </FluentTheme.Palettes>
         </FluentTheme>
-        <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml"/>
     </Application.Styles>
 </Application>

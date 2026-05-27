@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using AquaStorage.Helpers;
 
 namespace AquaStorage.Views;
@@ -82,8 +82,23 @@ public partial class PathDetailWindow : Window
         recolorWin.ShowDialog(this);
     }
 
-    private void BtnClose_Click(object? sender, RoutedEventArgs e)
+    private void OnTopBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        Close();
+        if (e.Source is Button) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+
+        if (e.ClickCount == 2)
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+            return;
+        }
+        BeginMoveDrag(e);
     }
+
+    private void OnMinimize(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void OnMaximize(object? sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    private void OnClose(object? sender, RoutedEventArgs e) => Close();
 }

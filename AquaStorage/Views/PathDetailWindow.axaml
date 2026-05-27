@@ -1,42 +1,82 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:avalonia="https://github.com/projektanker/icons.avalonia"
+        xmlns:i="https://github.com/projektanker/icons.avalonia"
         x:Class="AquaStorage.Views.PathDetailWindow"
         Title="Path Manager" Width="600" Height="400"
-        WindowStartupLocation="CenterOwner">
-    <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" ColumnSpacing="8" Margin="10">
-        <ListBox x:Name="PathListBox" Grid.Row="0" Grid.ColumnSpan="2">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Text="{Binding}"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis"
-                                   Margin="4 0"/>
-                        <Button x:Name="DeleteBtn" Grid.Column="1"
-                                Content="Remove" Width="80" Margin="4 0"
-                                Click="DeleteBtn_Click"/>
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        WindowStartupLocation="CenterOwner"
+        TransparencyLevelHint="Mica"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="0"
+        Background="Transparent">
+    <DockPanel>
+        <!-- Top bar -->
+        <Border DockPanel.Dock="Top" Height="32" Background="Transparent"
+                PointerPressed="OnTopBarPointerPressed">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="Path Manager" VerticalAlignment="Center"
+                           Margin="12,0,0,0" Opacity="0.6" FontSize="13"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                            Margin="0,0,4,0">
+                    <Button Classes="window-btn" Click="OnMinimize">
+                        <i:Icon Value="mdi-window-minimize" FontSize="14"/>
+                    </Button>
+                    <Button Classes="window-btn" Click="OnMaximize">
+                        <i:Icon Value="mdi-window-maximize" FontSize="14"/>
+                    </Button>
+                    <Button Classes="window-btn close-btn" Click="OnClose">
+                        <i:Icon Value="mdi-window-close" FontSize="14"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
 
-        <TextBox x:Name="NewPathTextBox" Grid.Row="1" Grid.Column="0"
-                 Watermark="Enter new path to add"/>
+        <!-- Content -->
+        <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" ColumnSpacing="8" Margin="10">
+            <ListBox x:Name="PathListBox" Grid.Row="0" Grid.ColumnSpan="2">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{Binding}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Margin="4 0"/>
+                            <Button x:Name="DeleteBtn" Grid.Column="1"
+                                    Content="Remove" Width="80" Margin="4 0"
+                                    Click="DeleteBtn_Click"/>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
-        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-            <Button x:Name="ThemeColorBtn" Width="80"
-                    Click="ThemeColorBtn_Click">
-                <avalonia:Icon Value="mdi-palette"/>
-            </Button>
-            <Button x:Name="AddBtn" Width="80"
-                    Click="AddBtn_Click">
-                <avalonia:Icon Value="mdi-plus"/>
+            <TextBox x:Name="NewPathTextBox" Grid.Row="1" Grid.Column="0"
+                     Watermark="Enter new path to add"/>
+
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <Button x:Name="ThemeColorBtn" Width="80"
+                        Click="ThemeColorBtn_Click">
+                    <i:Icon Value="mdi-palette"/>
                 </Button>
-            <Button x:Name="BtnClose" Width="80"
-                    Click="BtnClose_Click">
-                <avalonia:Icon Value="mdi-close-circle"></avalonia:Icon>
-            </Button>
-        </StackPanel>
-    </Grid>
+                <Button x:Name="AddBtn" Width="80"
+                        Click="AddBtn_Click">
+                    <i:Icon Value="mdi-plus"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </DockPanel>
+    <Window.Styles>
+        <Style Selector="Button.window-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Focusable" Value="False"/>
+        </Style>
+        <Style Selector="Button.window-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#20FFFFFF"/>
+        </Style>
+        <Style Selector="Button.close-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E81123"/>
+        </Style>
+    </Window.Styles>
 </Window>
