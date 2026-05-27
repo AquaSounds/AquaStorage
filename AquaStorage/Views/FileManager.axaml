@@ -9,11 +9,8 @@
              x:Class="AquaStorage.Views.FileManager">
 
     <Border Margin="10" CornerRadius="10">
-        <Grid RowDefinitions="Auto,*">
-            <TextBlock Text="File Manager" FontWeight="Bold" FontSize="16" Margin="15,8"
-                       HorizontalAlignment="Left" VerticalAlignment="Center"/>
-
-            <Border Grid.Row="1" CornerRadius="10" Margin="5">
+        <Grid>
+            <Border CornerRadius="10" Margin="5">
                 <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
                       ColumnDefinitions="*,Auto"
                       RowSpacing="8" ColumnSpacing="8" Margin="10">
