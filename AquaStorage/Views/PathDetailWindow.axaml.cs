@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using AquaStorage.Helpers;
 
 namespace AquaStorage.Views;
 
@@ -64,6 +66,20 @@ public partial class PathDetailWindow : Window
         {
             NewPathTextBox.Watermark = "Path already exists!";
         }
+    }
+
+    private void ThemeColorBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        var recolorWin = new RecolorWindow();
+        recolorWin.Submit += (_, color) =>
+        {
+            App.ApplyAccentColor(color);
+            ConfigHelper.SaveConfig("Config/ThemeConfig", new ThemeConfig
+            {
+                AccentColor = color.ToString()
+            });
+        };
+        recolorWin.ShowDialog(this);
     }
 
     private void BtnClose_Click(object? sender, RoutedEventArgs e)

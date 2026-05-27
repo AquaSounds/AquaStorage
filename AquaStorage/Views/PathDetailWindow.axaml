@@ -1,9 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:avalonia="https://github.com/projektanker/icons.avalonia"
         x:Class="AquaStorage.Views.PathDetailWindow"
         Title="Path Manager" Width="600" Height="400"
         WindowStartupLocation="CenterOwner">
-    <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" Margin="10">
+    <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" ColumnSpacing="8" Margin="10">
         <ListBox x:Name="PathListBox" Grid.Row="0" Grid.ColumnSpan="2">
             <ListBox.ItemTemplate>
                 <DataTemplate>
@@ -24,10 +25,18 @@
                  Watermark="Enter new path to add"/>
 
         <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-            <Button x:Name="AddBtn" Content="Add" Width="80"
-                    Click="AddBtn_Click"/>
-            <Button x:Name="BtnClose" Content="Close" Width="80"
-                    Click="BtnClose_Click"/>
+            <Button x:Name="ThemeColorBtn" Width="80"
+                    Click="ThemeColorBtn_Click">
+                <avalonia:Icon Value="mdi-palette"/>
+            </Button>
+            <Button x:Name="AddBtn" Width="80"
+                    Click="AddBtn_Click">
+                <avalonia:Icon Value="mdi-plus"/>
+                </Button>
+            <Button x:Name="BtnClose" Width="80"
+                    Click="BtnClose_Click">
+                <avalonia:Icon Value="mdi-close-circle"></avalonia:Icon>
+            </Button>
         </StackPanel>
     </Grid>
 </Window>
