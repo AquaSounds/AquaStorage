@@ -11,8 +11,6 @@ public partial class WaveForm : UserControl
     private float[]? _leftChannel;
     private float[]? _rightChannel;
 
-    private static readonly Pen WaveformPen = new Pen(Brushes.DodgerBlue, 1.0);
-
     public WaveForm()
     {
         InitializeComponent();
@@ -84,13 +82,14 @@ public partial class WaveForm : UserControl
         double stepX = w / _leftChannel.Length;
         double ampScale = halfH * 0.03;
 
-        // Top half: left channel
-        DrawChannel(context, _leftChannel, stepX, halfH / 2, ampScale);
-        // Bottom half: right channel
-        DrawChannel(context, _rightChannel, stepX, halfH + halfH / 2, ampScale);
+        var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
+        var pen = new Pen(new SolidColorBrush(accentColor), 1.0);
+
+        DrawChannel(context, _leftChannel, stepX, halfH / 2, ampScale, pen);
+        DrawChannel(context, _rightChannel, stepX, halfH + halfH / 2, ampScale, pen);
     }
 
-    private void DrawChannel(DrawingContext ctx, float[] data, double stepX, double midY, double ampScale)
+    private void DrawChannel(DrawingContext ctx, float[] data, double stepX, double midY, double ampScale, Pen pen)
     {
         var geometry = new StreamGeometry();
         using (var geoCtx = geometry.Open())
@@ -110,7 +109,7 @@ public partial class WaveForm : UserControl
                 }
             }
         }
-        ctx.DrawGeometry(null, WaveformPen, geometry);
+        ctx.DrawGeometry(null, pen, geometry);
     }
 
     public void Clear()
