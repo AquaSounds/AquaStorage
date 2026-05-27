@@ -13,7 +13,6 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AquaStorage.Helpers;
-using NAudio.Wave;
 using Projektanker.Icons.Avalonia;
 
 namespace AquaStorage.Views;
@@ -40,8 +39,8 @@ public partial class FileManager : UserControl
     private int _totalLoaded;
     private int _totalItems;
 
-    private WaveOutEvent? _waveOut;
-    private AudioFileReader? _audioFile;
+    private readonly AudioPlayerService _audioPlayer = new();
+    private bool _suppressSelectionChanged;
 
     public FileManager()
     {
@@ -237,13 +236,26 @@ public partial class FileManager : UserControl
     {
         var treeItem = new TreeViewItem { IsExpanded = isExpand };
 
-        // Drag support
+        // Drag support — only trigger after significant pointer movement
         var itemPressed = false;
-        treeItem.PointerPressed += (_, _) => itemPressed = true;
+        var pressPoint = new Point();
+        const double DragThreshold = 10.0;
+
+        treeItem.PointerPressed += (_, e) =>
+        {
+            itemPressed = true;
+            pressPoint = e.GetPosition(treeItem);
+        };
         treeItem.PointerReleased += (_, _) => itemPressed = false;
         treeItem.PointerMoved += async (sender, args) =>
         {
             if (!itemPressed || sender is not TreeViewItem item) return;
+
+            var pos = args.GetPosition(item);
+            if (Math.Abs(pos.X - pressPoint.X) < DragThreshold &&
+                Math.Abs(pos.Y - pressPoint.Y) < DragThreshold)
+                return;
+
             itemPressed = false;
 
             string path = GetFullPath(item);
@@ -262,7 +274,7 @@ public partial class FileManager : UserControl
                 dataTransfer.Add(dataItem);
             }
 
-            await StopWithFadeOutAsync();
+            _audioPlayer.Stop();
             await DragDrop.DoDragDropAsync(args, dataTransfer, DragDropEffects.Copy);
         };
 
@@ -394,10 +406,10 @@ public partial class FileManager : UserControl
 
     #region Selection & Audio
 
-    private string? _currentPlayingPath;
-
-    private async void TreeFiles_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void TreeFiles_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_suppressSelectionChanged) return;
+
         if (TreeFiles.SelectedItem is not TreeViewItem selected)
             return;
 
@@ -405,84 +417,32 @@ public partial class FileManager : UserControl
         if (string.IsNullOrEmpty(path))
             return;
 
-        selected.IsExpanded = !selected.IsExpanded;
-
         if (path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
         {
-            await StopWithFadeOutAsync();
             PlayWav(path);
+        }
+        else
+        {
+            _suppressSelectionChanged = true;
+            selected.IsExpanded = !selected.IsExpanded;
+            Dispatcher.UIThread.Post(() => _suppressSelectionChanged = false, DispatcherPriority.Loaded);
         }
     }
 
     private void PlayWav(string filePath)
     {
+        if (!File.Exists(filePath)) return;
+
         try
         {
-            if (!File.Exists(filePath)) return;
+            _audioPlayer.Play(filePath);
 
             WaveForm.Clear();
             WaveForm.RenderWaveform(filePath);
-
-            _currentPlayingPath = filePath;
-
-            _audioFile = new AudioFileReader(filePath);
-            _waveOut = new WaveOutEvent();
-            _waveOut.NumberOfBuffers = 256;
-            _waveOut.DesiredLatency = 100;
-            _waveOut.Init(_audioFile);
-            _waveOut.Play();
         }
         catch
         {
-            StopAudio();
         }
-    }
-
-    private async Task StopWithFadeOutAsync()
-    {
-        try
-        {
-            if (_waveOut != null && _waveOut.PlaybackState == PlaybackState.Playing && _audioFile != null)
-            {
-                float originalVolume = _audioFile.Volume;
-                for (int i = 10; i >= 0; i--)
-                {
-                    _audioFile.Volume = originalVolume * i / 10f;
-                    await Task.Delay(5);
-                }
-                _audioFile.Volume = 0;
-                _waveOut.Stop();
-            }
-        }
-        catch { }
-
-        try
-        {
-            _waveOut?.Dispose();
-            _audioFile?.Dispose();
-            _waveOut = null;
-            _audioFile = null;
-            _currentPlayingPath = null;
-        }
-        catch { }
-    }
-
-    private void StopAudio()
-    {
-        try
-        {
-            if (_waveOut != null)
-            {
-                if (_waveOut.PlaybackState == PlaybackState.Playing)
-                    _waveOut.Stop();
-                _waveOut.Dispose();
-                _waveOut = null;
-            }
-            _audioFile?.Dispose();
-            _audioFile = null;
-            _currentPlayingPath = null;
-        }
-        catch { }
     }
 
     #endregion
