@@ -260,7 +260,7 @@ public partial class FileManager : UserControl
             itemPressed = false;
 
             string path = GetFullPath(item);
-            if (!File.Exists(path) || !path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+            if (!File.Exists(path) || !AudioFormats.IsAudioFile(path))
                 return;
 
             var dataTransfer = new DataTransfer();
@@ -303,7 +303,7 @@ public partial class FileManager : UserControl
                 return treeItem;
             }
 
-            if (file.Extension.Equals(".wav", StringComparison.OrdinalIgnoreCase))
+            if (AudioFormats.IsAudioFile(file.FullName))
                 content.Children.Add(new Icon { Value = "fa-solid fa-file-waveform", FontSize = 12 });
             else
                 content.Children.Add(new Icon { Value = "fa-regular fa-file", FontSize = 12 });
@@ -418,9 +418,9 @@ public partial class FileManager : UserControl
         if (string.IsNullOrEmpty(path))
             return;
 
-        if (path.EndsWith(".wav", StringComparison.OrdinalIgnoreCase))
+        if (AudioFormats.IsAudioFile(path))
         {
-            PlayWav(path);
+            PlayAudio(path);
         }
         else
         {
@@ -430,7 +430,7 @@ public partial class FileManager : UserControl
         }
     }
 
-    private void PlayWav(string filePath)
+    private void PlayAudio(string filePath)
     {
         if (!File.Exists(filePath)) return;
 

@@ -9,7 +9,7 @@ public sealed class AudioPlayerService : IDisposable
 {
     private readonly object _lock = new();
     private WaveOutEvent? _waveOut;
-    private AudioFileReader? _audioFile;
+    private WaveStream? _audioFile;
 
     private double _seekTarget;
     private readonly Stopwatch _seekTimer = new();
@@ -106,7 +106,7 @@ public sealed class AudioPlayerService : IDisposable
             {
                 try
                 {
-                    _audioFile = new AudioFileReader(filePath);
+                    _audioFile = AudioFormats.CreateReader(filePath);
                     _waveOut = new WaveOutEvent
                     {
                         DesiredLatency = 30,

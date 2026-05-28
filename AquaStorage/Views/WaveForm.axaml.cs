@@ -47,7 +47,7 @@ public partial class WaveForm : UserControl
     {
         try
         {
-            using var reader = new AudioFileReader(filePath);
+            using var reader = AudioFormats.CreateReader(filePath);
             var (left, right) = LoadStereoData(reader);
             _leftChannel = left;
             _rightChannel = right;
@@ -71,27 +71,60 @@ public partial class WaveForm : UserControl
         InvalidateVisual();
     }
 
-    private (float[] left, float[] right) LoadStereoData(AudioFileReader reader)
+    private (float[] left, float[] right) LoadStereoData(WaveStream reader)
     {
         int channels = reader.WaveFormat.Channels;
         var leftSamples = new List<float>();
         var rightSamples = new List<float>();
-        float[] buffer = new float[4096];
-        int read;
 
-        while ((read = reader.Read(buffer, 0, buffer.Length)) > 0)
+        if (reader is ISampleProvider sampleProvider)
         {
-            for (int i = 0; i < read; i += channels)
+            float[] buffer = new float[4096];
+            int read;
+            while ((read = sampleProvider.Read(buffer, 0, buffer.Length)) > 0)
             {
-                float left = buffer[i] * 15;
-                leftSamples.Add(left);
-                float right = channels >= 2 ? buffer[i + 1] * 15 : left;
-                rightSamples.Add(right);
+                for (int i = 0; i < read; i += channels)
+                {
+                    leftSamples.Add(buffer[i] * 15);
+                    rightSamples.Add((channels >= 2 ? buffer[i + 1] : buffer[i]) * 15);
+                }
+            }
+        }
+        else
+        {
+            var format = reader.WaveFormat;
+            int blockAlign = format.BlockAlign;
+            byte[] byteBuffer = new byte[4096 * blockAlign];
+            int read;
+            while ((read = reader.Read(byteBuffer, 0, byteBuffer.Length)) > 0)
+            {
+                int sampleCount = read / blockAlign;
+                for (int i = 0; i < sampleCount; i++)
+                {
+                    float left = ReadSample(byteBuffer, i * blockAlign, format) * 15;
+                    leftSamples.Add(left);
+                    float right = channels >= 2
+                        ? ReadSample(byteBuffer, i * blockAlign + (blockAlign / channels), format) * 15
+                        : left;
+                    rightSamples.Add(right);
+                }
             }
         }
 
         const int targetPoints = 1200;
         return (Downsample(leftSamples, targetPoints), Downsample(rightSamples, targetPoints));
+    }
+
+    private static float ReadSample(byte[] buffer, int offset, WaveFormat format)
+    {
+        return format.BitsPerSample switch
+        {
+            16 => BitConverter.ToInt16(buffer, offset) / 32768f,
+            24 => (buffer[offset] | (buffer[offset + 1] << 8) | ((sbyte)buffer[offset + 2] << 16)) / 8388608f,
+            32 when format.Encoding == WaveFormatEncoding.IeeeFloat => BitConverter.ToSingle(buffer, offset),
+            32 => BitConverter.ToInt32(buffer, offset) / 2147483648f,
+            _ => BitConverter.ToInt16(buffer, offset) / 32768f,
+        };
     }
 
     private float[] Downsample(List<float> input, int targetPoints)
