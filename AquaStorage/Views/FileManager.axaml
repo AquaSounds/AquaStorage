@@ -20,16 +20,14 @@
                             Click="BtnAdd_Click" HorizontalAlignment="Stretch">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <avalonia:Icon Value="fa-solid fa-folder-plus" FontSize="14"/>
-                            <TextBlock Text="Add Folder" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 
                     <!-- Detail button -->
                     <Button x:Name="BtnDetail" Grid.Row="0" Grid.Column="1"
-                            Click="BtnDetail_Click" Width="80">
+                            Click="BtnDetail_Click" Width="40">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <avalonia:Icon Value="fa-solid fa-list" FontSize="14"/>
-                            <TextBlock Text="Detail" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
 

@@ -41,9 +41,10 @@
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Margin="4 0"/>
-                            <Button x:Name="DeleteBtn" Grid.Column="1"
-                                    Content="Remove" Width="80" Margin="4 0"
-                                    Click="DeleteBtn_Click"/>
+                            <Button x:Name="DeleteBtn" Grid.Column="1" Width="80" Margin="4 0"
+                                    Click="DeleteBtn_Click">
+                                <i:Icon Value="mdi-trash-can"/>
+                            </Button>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
@@ -53,13 +54,15 @@
                      Watermark="Enter new path to add"/>
 
             <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <Button x:Name="ThemeColorBtn" Width="80"
-                        Click="ThemeColorBtn_Click">
-                    <i:Icon Value="mdi-palette"/>
-                </Button>
+                <!-- Add Path Button -->
                 <Button x:Name="AddBtn" Width="80"
                         Click="AddBtn_Click">
                     <i:Icon Value="mdi-plus"/>
+                </Button>
+                <!-- Change Color Button -->
+                <Button x:Name="ThemeColorBtn" Width="80"
+                        Click="ThemeColorBtn_Click">
+                    <i:Icon Value="mdi-palette"/>
                 </Button>
             </StackPanel>
         </Grid>

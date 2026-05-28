@@ -1,6 +1,7 @@
 using System;
 using AquaStorage.Helpers;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 
@@ -30,4 +31,13 @@ public partial class RecolorWindow : Window
     {
         Close();
     }
+
+    private void OnTopBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Source is Button) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        BeginMoveDrag(e);
+    }
+
+    private void OnClose(object? sender, RoutedEventArgs e) => Close();
 }

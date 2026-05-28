@@ -1,14 +1,53 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:i="https://github.com/projektanker/icons.avalonia"
         xmlns:views="clr-namespace:AquaStorage.Views"
         x:Class="AquaStorage.Views.RecolorWindow"
         Title="Theme Color" Width="380" Height="480"
-        WindowStartupLocation="CenterOwner">
-    <StackPanel Margin="12" Spacing="10">
-        <views:AquaColorPicker x:Name="MyColorPicker" Height="300" Width="300"/>
-        <StackPanel Orientation="Horizontal" Spacing="80" HorizontalAlignment="Center" Margin="0 8 0 0">
-            <Button x:Name="SubmitBtn" Content="Confirm" Width="80" Click="SubmitBtn_Click"/>
-            <Button x:Name="CancelBtn" Content="Cancel" Width="80" Click="CancelBtn_Click"/>
+        WindowStartupLocation="CenterOwner"
+        TransparencyLevelHint="Mica"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaChromeHints="NoChrome"
+        ExtendClientAreaTitleBarHeightHint="0"
+        Background="Transparent">
+    <DockPanel>
+        <!-- Top bar -->
+        <Border DockPanel.Dock="Top" Height="32" Background="Transparent"
+                PointerPressed="OnTopBarPointerPressed">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Grid.Column="0" Text="Theme Color" VerticalAlignment="Center"
+                           Margin="12,0,0,0" Opacity="0.6" FontSize="13"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                            Margin="0,0,4,0">
+                    <Button Classes="window-btn close-btn" Click="OnClose">
+                        <i:Icon Value="mdi-window-close" FontSize="14"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Content -->
+        <StackPanel Margin="12" Spacing="10">
+            <views:AquaColorPicker x:Name="MyColorPicker" Height="300" Width="300"/>
+            <StackPanel Orientation="Horizontal" Spacing="80" HorizontalAlignment="Center" Margin="0 8 0 0">
+                <Button x:Name="SubmitBtn" Content="Confirm" Width="80" Click="SubmitBtn_Click"/>
+                <Button x:Name="CancelBtn" Content="Cancel" Width="80" Click="CancelBtn_Click"/>
+            </StackPanel>
         </StackPanel>
-    </StackPanel>
+    </DockPanel>
+    <Window.Styles>
+        <Style Selector="Button.window-btn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Width" Value="46"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="Focusable" Value="False"/>
+        </Style>
+        <Style Selector="Button.window-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#20FFFFFF"/>
+        </Style>
+        <Style Selector="Button.close-btn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#E81123"/>
+        </Style>
+    </Window.Styles>
 </Window>
