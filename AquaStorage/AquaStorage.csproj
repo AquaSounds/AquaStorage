@@ -25,4 +25,10 @@
         <PackageReference Include="Projektanker.Icons.Avalonia.FontAwesome" Version="9.6.2" />
         <PackageReference Include="Projektanker.Icons.Avalonia.MaterialDesign" Version="9.6.2" />
     </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="Views\SettingsWindow.axaml.cs">
+        <DependentUpon>SettingsWindow.axaml</DependentUpon>
+      </Compile>
+    </ItemGroup>
 </Project>

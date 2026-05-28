@@ -1,8 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i="https://github.com/projektanker/icons.avalonia"
-        x:Class="AquaStorage.Views.PathDetailWindow"
-        Title="Path Manager" Width="600" Height="400"
+        x:Class="AquaStorage.Views.SettingsWindow"
+        Title="Settings" Width="600" Height="440"
         WindowStartupLocation="CenterOwner"
         TransparencyLevelHint="Mica"
         ExtendClientAreaToDecorationsHint="True"
@@ -14,7 +14,7 @@
         <Border DockPanel.Dock="Top" Height="32" Background="Transparent"
                 PointerPressed="OnTopBarPointerPressed">
             <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Text="Path Manager" VerticalAlignment="Center"
+                <TextBlock Grid.Column="0" Text="Settings" VerticalAlignment="Center"
                            Margin="12,0,0,0" Opacity="0.6" FontSize="13"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                             Margin="0,0,4,0">
@@ -32,8 +32,36 @@
         </Border>
 
         <!-- Content -->
-        <Grid RowDefinitions="*,Auto" ColumnDefinitions="*,Auto" RowSpacing="8" ColumnSpacing="8" Margin="10">
-            <ListBox x:Name="PathListBox" Grid.Row="0" Grid.ColumnSpan="2">
+        <DockPanel Margin="10" LastChildFill="True">
+            <!-- Config folder path -->
+            <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,10">
+                <TextBlock Text="Config Folder" Opacity="0.6" FontSize="12"/>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                    <TextBox x:Name="ConfigPathBox" Grid.Column="0"
+                             Watermark="Config folder path"
+                             LostFocus="ConfigPathBox_LostFocus"/>
+                    <Button x:Name="BrowseConfigBtn" Grid.Column="1" Width="40"
+                            Click="BrowseConfigBtn_Click">
+                        <i:Icon Value="mdi-folder-open"/>
+                    </Button>
+                </Grid>
+            </StackPanel>
+
+            <!-- Search box -->
+            <TextBox DockPanel.Dock="Top" x:Name="SearchBox"
+                     Watermark="Search paths..." Margin="0,0,0,8"
+                     TextChanged="SearchBox_TextChanged"/>
+
+            <!-- Bottom buttons -->
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                        HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+                <Button x:Name="ThemeColorBtn" Click="ThemeColorBtn_Click">
+                    <i:Icon Value="mdi-palette"/>
+                </Button>
+            </StackPanel>
+
+            <!-- Path list -->
+            <ListBox x:Name="PathListBox">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid ColumnDefinitions="*,Auto">
@@ -49,23 +77,7 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-
-            <TextBox x:Name="NewPathTextBox" Grid.Row="1" Grid.Column="0"
-                     Watermark="Enter new path to add"/>
-
-            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                <!-- Add Path Button -->
-                <Button x:Name="AddBtn" Width="80"
-                        Click="AddBtn_Click">
-                    <i:Icon Value="mdi-plus"/>
-                </Button>
-                <!-- Change Color Button -->
-                <Button x:Name="ThemeColorBtn" Width="80"
-                        Click="ThemeColorBtn_Click">
-                    <i:Icon Value="mdi-palette"/>
-                </Button>
-            </StackPanel>
-        </Grid>
+        </DockPanel>
     </DockPanel>
     <Window.Styles>
         <Style Selector="Button.window-btn">

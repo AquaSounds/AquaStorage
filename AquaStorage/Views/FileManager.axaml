@@ -27,7 +27,7 @@
                     <Button x:Name="BtnDetail" Grid.Row="0" Grid.Column="1"
                             Click="BtnDetail_Click" Width="40">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
-                            <avalonia:Icon Value="fa-solid fa-list" FontSize="14"/>
+                            <avalonia:Icon Value="mdi-cog" FontSize="14"/>
                         </StackPanel>
                     </Button>
 

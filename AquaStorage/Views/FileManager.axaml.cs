@@ -189,35 +189,9 @@ public partial class FileManager : UserControl
 
     private void BtnDetail_Click(object? sender, RoutedEventArgs e)
     {
-        var detailWin = new PathDetailWindow(AddedPaths);
+        var settingsWin = new SettingsWindow(AddedPaths);
 
-        detailWin.OnPathAdded += async (addedPath) =>
-        {
-            if (AddedPaths.Contains(addedPath)) return;
-            try
-            {
-                var dirInfo = new DirectoryInfo(addedPath);
-                var rootItem = await CreateTreeItemAsync(dirInfo, false);
-                rootItem.Tag = addedPath;
-
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    AddedPaths.Add(addedPath);
-                    SaveConfig();
-                    TreeFiles.Items.Add(rootItem);
-                    rootItem.IsExpanded = false;
-                    TreeFiles.SelectedItem = rootItem;
-                    TreeFiles.Focus();
-                    ShowTip($"Added: {addedPath}", false);
-                });
-            }
-            catch (Exception ex)
-            {
-                ShowTip($"Failed to load {addedPath}: {ex.Message}", true);
-            }
-        };
-
-        detailWin.OnPathDeleted += (deletedPath) =>
+        settingsWin.OnPathDeleted += (deletedPath) =>
         {
             if (AddedPaths.Contains(deletedPath))
             {
@@ -228,7 +202,7 @@ public partial class FileManager : UserControl
             }
         };
 
-        detailWin.Show();
+        settingsWin.Show();
     }
 
     #endregion
