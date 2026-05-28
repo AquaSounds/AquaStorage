@@ -12,7 +12,7 @@
         <Grid>
             <Border CornerRadius="10" Margin="5">
                 <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
-                      ColumnDefinitions="*,Auto"
+                      ColumnDefinitions="*,Auto,Auto"
                       RowSpacing="8" ColumnSpacing="8" Margin="10">
 
                     <!-- Add Folder button -->
@@ -33,21 +33,25 @@
                         </StackPanel>
                     </Button>
 
+                    <!-- Volume knob -->
+                    <local:VolumeKnob x:Name="VolumeKnob" Grid.Row="0" Grid.Column="2"
+                                      Width="40" Height="40" VerticalAlignment="Center"/>
+
                     <!-- Loading progress bar -->
-                    <ProgressBar x:Name="LoadingBar" Grid.Row="1" Grid.ColumnSpan="2"
+                    <ProgressBar x:Name="LoadingBar" Grid.Row="1" Grid.ColumnSpan="3"
                                  Height="6" CornerRadius="3" IsVisible="False"/>
 
                     <!-- Tip text -->
-                    <TextBlock x:Name="TipTextBlock" Grid.Row="2" Grid.ColumnSpan="2"
+                    <TextBlock x:Name="TipTextBlock" Grid.Row="2" Grid.ColumnSpan="3"
                                Margin="4,0" IsVisible="False" HorizontalAlignment="Left"/>
 
                     <!-- File tree -->
-                    <TreeView x:Name="TreeFiles" Grid.Row="3" Grid.ColumnSpan="2"
+                    <TreeView x:Name="TreeFiles" Grid.Row="3" Grid.ColumnSpan="3"
                               Margin="0,4,0,0"
                               SelectionChanged="TreeFiles_OnSelectionChanged"/>
 
                     <!-- Waveform display -->
-                    <local:WaveForm Grid.Row="4" Grid.ColumnSpan="2"
+                    <local:WaveForm Grid.Row="4" Grid.ColumnSpan="3"
                                     Height="100" x:Name="WaveForm"/>
                 </Grid>
             </Border>

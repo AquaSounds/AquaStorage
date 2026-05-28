@@ -48,6 +48,8 @@ public partial class FileManager : UserControl
         _loadingBar = this.FindControl<ProgressBar>("LoadingBar");
         _tipTextBlock = this.FindControl<TextBlock>("TipTextBlock");
         WaveForm.Player = _audioPlayer;
+        VolumeKnob.Value = _audioPlayer.VolumeDb;
+        VolumeKnob.ValueChanged += db => _audioPlayer.VolumeDb = db;
 
         if (_loadingBar != null)
         {

@@ -15,6 +15,23 @@ public sealed class AudioPlayerService : IDisposable
     private readonly Stopwatch _seekTimer = new();
     private bool _seekPending;
 
+    private double _volumeDb = -6;
+    public double VolumeDb
+    {
+        get => _volumeDb;
+        set
+        {
+            _volumeDb = Math.Clamp(value, -60, 0);
+            lock (_lock)
+            {
+                if (_waveOut != null)
+                    _waveOut.Volume = DbToLinear(_volumeDb);
+            }
+        }
+    }
+
+    private static float DbToLinear(double db) => (float)Math.Pow(10, db / 20.0);
+
     public string? CurrentPath { get; private set; }
     public bool IsPlaying => _waveOut?.PlaybackState == PlaybackState.Playing;
     public bool HasFile => _audioFile != null;
@@ -111,7 +128,7 @@ public sealed class AudioPlayerService : IDisposable
                     {
                         DesiredLatency = 30,
                         NumberOfBuffers = 1024,
-                        Volume = 0.2f
+                        Volume = DbToLinear(_volumeDb)
                     };
                     _waveOut.Init(_audioFile);
                     _waveOut.Play();
