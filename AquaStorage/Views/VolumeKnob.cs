@@ -68,6 +68,7 @@ public class VolumeKnob : Control
     {
         ClipToBounds = false;
         IsHitTestVisible = true;
+        App.AccentColorChanged += _ => InvalidateVisual();
     }
 
     static VolumeKnob()

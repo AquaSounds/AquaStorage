@@ -50,6 +50,7 @@ public partial class WaveForm : UserControl
         InitializeComponent();
         IsHitTestVisible = true;
         ClipToBounds = true;
+        App.AccentColorChanged += _ => { InvalidateGeometry(); InvalidateVisual(); };
     }
 
     public async void RenderWaveform(string filePath)

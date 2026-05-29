@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -11,6 +12,7 @@ namespace AquaStorage;
 public partial class App : Application
 {
     private const string SettingsConfigKey = "Config/SettingsConfig";
+    public static event Action<Color>? AccentColorChanged;
 
     public override void Initialize()
     {
@@ -43,5 +45,6 @@ public partial class App : Application
     {
         if (Current?.Resources.ContainsKey("AccentPrimary") == true)
             Current.Resources["AccentPrimary"] = color;
+        AccentColorChanged?.Invoke(color);
     }
 }

@@ -63,6 +63,8 @@ public partial class FileManager : UserControl
 
         TreeFiles.AddHandler(PointerWheelChangedEvent, TreeFiles_OnPointerWheelChanged, RoutingStrategies.Bubble, handledEventsToo: true);
 
+        App.AccentColorChanged += color => UpdateFolderIconColors(TreeFiles.Items, color);
+
         _ = LoadSavedPathsOnStartup();
     }
 
@@ -684,6 +686,27 @@ public partial class FileManager : UserControl
 
             if (tvItem.Items.Count > 0)
                 UpdateTreeFontSizes(tvItem.Items);
+        }
+    }
+
+    private void UpdateFolderIconColors(ItemCollection items, Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        foreach (var item in items)
+        {
+            if (item is not TreeViewItem tvItem) continue;
+
+            if (tvItem.Header is StackPanel panel)
+            {
+                foreach (var child in panel.Children)
+                {
+                    if (child is Icon icon && icon.Value == "fa-solid fa-folder")
+                        icon.Foreground = brush;
+                }
+            }
+
+            if (tvItem.Items.Count > 0)
+                UpdateFolderIconColors(tvItem.Items, color);
         }
     }
 
