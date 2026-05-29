@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i="https://github.com/projektanker/icons.avalonia"
         x:Class="AquaStorage.Views.SettingsWindow"
-        Title="Settings" Width="600" Height="440"
+        Title="Settings" Width="600" Height="480"
         WindowStartupLocation="CenterOwner"
         TransparencyLevelHint="Mica"
         ExtendClientAreaToDecorationsHint="True"
@@ -31,77 +31,99 @@
             </Grid>
         </Border>
 
-        <!-- Content -->
-        <DockPanel Margin="10" LastChildFill="True">
-            <!-- App Data folder path -->
-            <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,10">
-                <TextBlock Text="App Data" Opacity="0.6" FontSize="12"/>
-                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
-                    <TextBox x:Name="ConfigPathBox" Grid.Column="0"
-                             Watermark="App data folder path"
-                             IsReadOnly="True"/>
-                    <Button x:Name="OpenFolderBtn" Grid.Column="1" Width="40"
-                            Click="OpenFolderBtn_Click"
-                            ToolTip.Tip="Open folder">
-                        <i:Icon Value="mdi-folder-open"/>
-                    </Button>
-                    <Button x:Name="BrowseConfigBtn" Grid.Column="2" Width="40"
-                            Click="BrowseConfigBtn_Click"
-                            ToolTip.Tip="Set folder location">
-                        <i:Icon Value="mdi-cog"/>
-                    </Button>
-                </Grid>
-            </StackPanel>
+        <!-- Tab content -->
+        <TabControl Margin="10,0,10,10">
 
-            <!-- Search box -->
-            <TextBox DockPanel.Dock="Top" x:Name="SearchBox"
-                     Watermark="Search paths..." Margin="0,0,0,8"
-                     TextChanged="SearchBox_TextChanged"/>
-
-            <!-- Bottom buttons -->
-            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
-                        HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
-                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="Font Size" Opacity="0.6" FontSize="12"
-                               VerticalAlignment="Center"/>
-                    <TextBox x:Name="DefaultFontSizeBox" Width="50" Watermark="12"
-                             TextChanged="DefaultFontSizeBox_TextChanged"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock Text="Max Cache" Opacity="0.6" FontSize="12"
-                               VerticalAlignment="Center"/>
-                    <TextBox x:Name="MaxCacheBox" Width="80" Watermark="500MB"
-                             TextChanged="MaxCacheBox_TextChanged"/>
-                </StackPanel>
-                <Button x:Name="ClearCacheBtn" Click="ClearCacheBtn_Click"
-                        ToolTip.Tip="Clear Cache">
-                    <i:Icon Value="fa-solid fa-broom"/>
-                </Button>
-                <Button x:Name="ThemeColorBtn" Click="ThemeColorBtn_Click"
-                        ToolTip.Tip="Theme Color">
-                    <i:Icon Value="mdi-palette"/>
-                </Button>
-            </StackPanel>
-
-            <!-- Path list -->
-            <ListBox x:Name="PathListBox">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock x:Name="PathText" Text="{Binding}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"
-                                       Margin="4 0"/>
-                            <Button x:Name="DeleteBtn" Grid.Column="1" Width="80" Margin="4 0"
-                                    Click="DeleteBtn_Click"
-                                    ToolTip.Tip="Delete">
-                                <i:Icon Value="mdi-trash-can"/>
+            <!-- Folders tab -->
+            <TabItem Header="Folders">
+                <DockPanel Margin="0,8,0,0" LastChildFill="True">
+                    <!-- App Data folder path -->
+                    <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,10">
+                        <TextBlock Text="App Data" Opacity="0.6" FontSize="12"/>
+                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                            <TextBox x:Name="ConfigPathBox" Grid.Column="0"
+                                     Watermark="App data folder path"
+                                     IsReadOnly="True"/>
+                            <Button x:Name="OpenFolderBtn" Grid.Column="1" Width="40"
+                                    Click="OpenFolderBtn_Click"
+                                    ToolTip.Tip="Open folder">
+                                <i:Icon Value="mdi-folder-open"/>
+                            </Button>
+                            <Button x:Name="BrowseConfigBtn" Grid.Column="2" Width="40"
+                                    Click="BrowseConfigBtn_Click"
+                                    ToolTip.Tip="Set folder location">
+                                <i:Icon Value="mdi-cog"/>
                             </Button>
                         </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </DockPanel>
+                    </StackPanel>
+
+                    <!-- Search box -->
+                    <TextBox DockPanel.Dock="Top" x:Name="SearchBox"
+                             Watermark="Search paths..." Margin="0,0,0,8"
+                             TextChanged="SearchBox_TextChanged"/>
+
+                    <!-- Path list -->
+                    <ListBox x:Name="PathListBox">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock x:Name="PathText" Text="{Binding}"
+                                               VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis"
+                                               Margin="4 0"/>
+                                    <Button x:Name="DeleteBtn" Grid.Column="1" Width="80" Margin="4 0"
+                                            Click="DeleteBtn_Click"
+                                            ToolTip.Tip="Delete">
+                                        <i:Icon Value="mdi-trash-can"/>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+            </TabItem>
+
+            <!-- Appearance tab -->
+            <TabItem Header="Appearance">
+                <StackPanel Spacing="12" Margin="0,12,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Theme Color" Opacity="0.6" FontSize="12"
+                                   VerticalAlignment="Center" Width="100"/>
+                        <Button x:Name="ThemeColorBtn" Click="ThemeColorBtn_Click"
+                                ToolTip.Tip="Theme Color">
+                            <i:Icon Value="mdi-palette"/>
+                        </Button>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Font Size" Opacity="0.6" FontSize="12"
+                                   VerticalAlignment="Center" Width="100"/>
+                        <TextBox x:Name="DefaultFontSizeBox" Width="80" Watermark="12"
+                                 TextChanged="DefaultFontSizeBox_TextChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+            <!-- Storage tab -->
+            <TabItem Header="Storage">
+                <StackPanel Spacing="12" Margin="0,12,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Max Cache" Opacity="0.6" FontSize="12"
+                                   VerticalAlignment="Center" Width="100"/>
+                        <TextBox x:Name="MaxCacheBox" Width="120" Watermark="500MB"
+                                 TextChanged="MaxCacheBox_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="Clear Cache" Opacity="0.6" FontSize="12"
+                                   VerticalAlignment="Center" Width="100"/>
+                        <Button x:Name="ClearCacheBtn" Click="ClearCacheBtn_Click"
+                                ToolTip.Tip="Clear Cache">
+                            <i:Icon Value="fa-solid fa-broom"/>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </TabItem>
+
+        </TabControl>
     </DockPanel>
     <Window.Styles>
         <Style Selector="Button.window-btn">
