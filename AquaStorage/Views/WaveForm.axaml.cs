@@ -7,6 +7,7 @@ using AquaStorage.Helpers;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace AquaStorage.Views;
 
@@ -17,9 +18,16 @@ public partial class WaveForm : UserControl
 
     private AudioPlayerService? _player;
     private DispatcherTimer? _positionTimer;
-    private double _playbackPosition; // 0..1
+    private double _playbackPosition;
     private bool _isDragging;
     private bool _isHoveringNear;
+
+    // Cached rendering resources
+    private StreamGeometry? _leftGeometry;
+    private StreamGeometry? _rightGeometry;
+    private Pen? _waveformPen;
+    private double _cachedW = -1;
+    private double _cachedH = -1;
 
     private const double LineHitZone = 20.0;
 
@@ -43,15 +51,19 @@ public partial class WaveForm : UserControl
         ClipToBounds = true;
     }
 
-    public void RenderWaveform(string filePath)
+    public async void RenderWaveform(string filePath)
     {
         try
         {
-            using var reader = AudioFormats.CreateReader(filePath);
-            var (left, right) = LoadStereoData(reader);
+            var (left, right) = await Task.Run(() =>
+            {
+                using var reader = AudioFormats.CreateReader(filePath);
+                return LoadStereoData(reader);
+            });
             _leftChannel = left;
             _rightChannel = right;
             _playbackPosition = 0;
+            InvalidateGeometry();
             InvalidateVisual();
             if (_player != null) StartPositionTimer();
         }
@@ -68,51 +80,237 @@ public partial class WaveForm : UserControl
         _rightChannel = null;
         _playbackPosition = 0;
         StopPositionTimer();
+        InvalidateGeometry();
         InvalidateVisual();
     }
 
-    private (float[] left, float[] right) LoadStereoData(WaveStream reader)
+    private static (float[] left, float[] right) LoadStereoData(WaveStream reader)
     {
+        const int targetPoints = 1200;
         int channels = reader.WaveFormat.Channels;
-        var leftSamples = new List<float>();
-        var rightSamples = new List<float>();
 
-        if (reader is ISampleProvider sampleProvider)
+        long totalFrames = 0;
+        try { if (reader.Length > 0) totalFrames = reader.Length / reader.WaveFormat.BlockAlign; } catch { }
+
+        if (reader is ISampleProvider sp)
+            return LoadOnline(sp, channels, totalFrames, targetPoints);
+        else
+            return LoadOnlineBytes(reader, channels, totalFrames, targetPoints);
+    }
+
+    /// <summary>
+    /// Streaming subsample — never holds the full decoded audio in memory.
+    /// </summary>
+    private static (float[], float[]) LoadOnline(
+        ISampleProvider provider, int channels, long totalFrames, int targetPoints)
+    {
+        // Short file: read everything, no downsampling needed
+        if (totalFrames > 0 && totalFrames <= targetPoints)
+            return LoadAllSamples(provider, channels);
+
+        float[] left = new float[targetPoints];
+        float[] right = new float[targetPoints];
+
+        if (totalFrames > 0)
         {
-            float[] buffer = new float[4096];
+            // Known length: direct online subsampling
+            float step = (float)totalFrames / targetPoints;
+            float[] buf = new float[8192];
+            int frameIdx = 0;
             int read;
-            while ((read = sampleProvider.Read(buffer, 0, buffer.Length)) > 0)
+            while ((read = provider.Read(buf, 0, buf.Length)) > 0)
             {
-                for (int i = 0; i < read; i += channels)
+                for (int i = 0; i < read; i += channels, frameIdx++)
                 {
-                    leftSamples.Add(buffer[i] * 15);
-                    rightSamples.Add((channels >= 2 ? buffer[i + 1] : buffer[i]) * 15);
+                    int bin = (int)(frameIdx / step);
+                    if (bin >= targetPoints) goto done;
+
+                    left[bin] = buf[i] * 15;
+                    right[bin] = (channels >= 2 ? buf[i + 1] : buf[i]) * 15;
                 }
             }
+            done:;
         }
         else
         {
-            var format = reader.WaveFormat;
-            int blockAlign = format.BlockAlign;
-            byte[] byteBuffer = new byte[4096 * blockAlign];
-            int read;
-            while ((read = reader.Read(byteBuffer, 0, byteBuffer.Length)) > 0)
-            {
-                int sampleCount = read / blockAlign;
-                for (int i = 0; i < sampleCount; i++)
-                {
-                    float left = ReadSample(byteBuffer, i * blockAlign, format) * 15;
-                    leftSamples.Add(left);
-                    float right = channels >= 2
-                        ? ReadSample(byteBuffer, i * blockAlign + (blockAlign / channels), format) * 15
-                        : left;
-                    rightSamples.Add(right);
-                }
-            }
+            // Unknown length: accumulate coarse bins, then downsample
+            var (lBins, rBins) = AccumulateBins(provider, channels, samplesPerBin: 8192);
+            return (DownsampleBins(lBins, targetPoints), DownsampleBins(rBins, targetPoints));
         }
 
-        const int targetPoints = 1200;
-        return (Downsample(leftSamples, targetPoints), Downsample(rightSamples, targetPoints));
+        return (left, right);
+    }
+
+    private static (float[], float[]) LoadOnlineBytes(
+        WaveStream reader, int channels, long totalFrames, int targetPoints)
+    {
+        var format = reader.WaveFormat;
+        int blockAlign = format.BlockAlign;
+        int bytesPerSample = blockAlign / channels;
+
+        if (totalFrames > 0 && totalFrames <= targetPoints)
+            return LoadAllSamplesBytes(reader, format, channels, blockAlign, bytesPerSample);
+
+        float[] left = new float[targetPoints];
+        float[] right = new float[targetPoints];
+
+        if (totalFrames > 0)
+        {
+            float step = (float)totalFrames / targetPoints;
+            byte[] buf = new byte[65536 * blockAlign];
+            int frameIdx = 0;
+            int read;
+            while ((read = reader.Read(buf, 0, buf.Length)) > 0)
+            {
+                int framesInBuf = read / blockAlign;
+                for (int f = 0; f < framesInBuf; f++, frameIdx++)
+                {
+                    int bin = (int)(frameIdx / step);
+                    if (bin >= targetPoints) goto done;
+
+                    int off = f * blockAlign;
+                    left[bin] = ReadSample(buf, off, format) * 15;
+                    right[bin] = channels >= 2
+                        ? ReadSample(buf, off + bytesPerSample, format) * 15
+                        : left[bin];
+                }
+            }
+            done:;
+        }
+        else
+        {
+            var (lBins, rBins) = AccumulateBinsBytes(reader, format, channels, blockAlign, bytesPerSample, samplesPerBin: 8192);
+            return (DownsampleBins(lBins, targetPoints), DownsampleBins(rBins, targetPoints));
+        }
+
+        return (left, right);
+    }
+
+    private static (float[], float[]) LoadAllSamples(ISampleProvider provider, int channels)
+    {
+        var samples = new List<float>();
+        float[] buf = new float[8192];
+        int read;
+        while ((read = provider.Read(buf, 0, buf.Length)) > 0)
+        {
+            for (int i = 0; i < read; i++)
+                samples.Add(buf[i]);
+        }
+        int frames = samples.Count / channels;
+        var l = new float[frames];
+        var r = new float[frames];
+        for (int f = 0; f < frames; f++)
+        {
+            int idx = f * channels;
+            l[f] = samples[idx] * 15;
+            r[f] = channels >= 2 ? samples[idx + 1] * 15 : l[f];
+        }
+        return (l, r);
+    }
+
+    private static (float[], float[]) LoadAllSamplesBytes(
+        WaveStream reader, WaveFormat format, int channels, int blockAlign, int bytesPerSample)
+    {
+        using var ms = new System.IO.MemoryStream();
+        byte[] buf = new byte[65536];
+        int read;
+        while ((read = reader.Read(buf, 0, buf.Length)) > 0)
+            ms.Write(buf, 0, read);
+
+        var allBytes = ms.GetBuffer();
+        int totalBytes = (int)ms.Length;
+        int totalFrames = totalBytes / blockAlign;
+        var l = new float[totalFrames];
+        var r = new float[totalFrames];
+        for (int f = 0; f < totalFrames; f++)
+        {
+            int off = f * blockAlign;
+            l[f] = ReadSample(allBytes, off, format) * 15;
+            r[f] = channels >= 2
+                ? ReadSample(allBytes, off + bytesPerSample, format) * 15
+                : l[f];
+        }
+        return (l, r);
+    }
+
+    /// <summary>Accumulate subsampled bins at fixed sample-width for unknown-length streams.</summary>
+    private static (List<float> left, List<float> right) AccumulateBins(
+        ISampleProvider provider, int channels, int samplesPerBin)
+    {
+        var left = new List<float>();
+        var right = new List<float>();
+        float[] buf = new float[8192];
+        float lLast = 0, rLast = 0;
+        int pos = 0;
+        int read;
+        while ((read = provider.Read(buf, 0, buf.Length)) > 0)
+        {
+            for (int i = 0; i < read; i += channels, pos++)
+            {
+                if (pos >= samplesPerBin)
+                {
+                    left.Add(lLast);
+                    right.Add(rLast);
+                    pos = 0;
+                }
+                lLast = buf[i] * 15;
+                rLast = (channels >= 2 ? buf[i + 1] : buf[i]) * 15;
+            }
+        }
+        if (pos > 0)
+        {
+            left.Add(lLast);
+            right.Add(rLast);
+        }
+        return (left, right);
+    }
+
+    private static (List<float> left, List<float> right) AccumulateBinsBytes(
+        WaveStream reader, WaveFormat format, int channels, int blockAlign, int bytesPerSample, int samplesPerBin)
+    {
+        var left = new List<float>();
+        var right = new List<float>();
+        byte[] buf = new byte[65536 * blockAlign];
+        float lLast = 0, rLast = 0;
+        int pos = 0;
+        int read;
+        while ((read = reader.Read(buf, 0, buf.Length)) > 0)
+        {
+            int framesInBuf = read / blockAlign;
+            for (int f = 0; f < framesInBuf; f++, pos++)
+            {
+                if (pos >= samplesPerBin)
+                {
+                    left.Add(lLast);
+                    right.Add(rLast);
+                    pos = 0;
+                }
+                int off = f * blockAlign;
+                lLast = ReadSample(buf, off, format) * 15;
+                rLast = channels >= 2
+                    ? ReadSample(buf, off + bytesPerSample, format) * 15
+                    : lLast;
+            }
+        }
+        if (pos > 0)
+        {
+            left.Add(lLast);
+            right.Add(rLast);
+        }
+        return (left, right);
+    }
+
+    /// <summary>Downsample bins to target count via subsampling.</summary>
+    private static float[] DownsampleBins(List<float> bins, int target)
+    {
+        if (bins.Count <= target)
+            return bins.ToArray();
+
+        float[] result = new float[target];
+        float step = (float)bins.Count / target;
+        for (int i = 0; i < target; i++)
+            result[i] = bins[(int)(i * step)];
+        return result;
     }
 
     private static float ReadSample(byte[] buffer, int offset, WaveFormat format)
@@ -127,22 +325,17 @@ public partial class WaveForm : UserControl
         };
     }
 
-    private float[] Downsample(List<float> input, int targetPoints)
+    private void InvalidateGeometry()
     {
-        if (input.Count <= targetPoints)
-            return input.ToArray();
-
-        float[] output = new float[targetPoints];
-        float step = input.Count / (float)targetPoints;
-        for (int i = 0; i < targetPoints; i++)
-            output[i] = input[(int)(i * step)];
-        return output;
+        _leftGeometry = null;
+        _rightGeometry = null;
+        _cachedW = -1;
+        _cachedH = -1;
     }
 
     public override void Render(DrawingContext context)
     {
         base.Render(context);
-        
         context.DrawRectangle(Brushes.Transparent, null, new Rect(0, 0, Bounds.Width, Bounds.Height));
 
         if (_leftChannel == null || _rightChannel == null)
@@ -151,47 +344,46 @@ public partial class WaveForm : UserControl
         double w = Bounds.Width;
         double h = Bounds.Height;
         double halfH = h / 2;
-        double stepX = w / _leftChannel.Length;
         double ampScale = halfH * 0.03;
 
-        var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
-        var pen = new Pen(new SolidColorBrush(accentColor), 1.0);
+        // Rebuild geometry cache on size change
+        if (_leftGeometry == null || _rightGeometry == null
+            || Math.Abs(_cachedW - w) > 0.5 || Math.Abs(_cachedH - h) > 0.5)
+        {
+            _cachedW = w;
+            _cachedH = h;
+            double stepX = w / _leftChannel.Length;
+            _leftGeometry = BuildGeometry(_leftChannel, stepX, halfH / 2, ampScale);
+            _rightGeometry = BuildGeometry(_rightChannel, stepX, halfH + halfH / 2, ampScale);
 
-        DrawChannel(context, _leftChannel, stepX, halfH / 2, ampScale, pen);
-        DrawChannel(context, _rightChannel, stepX, halfH + halfH / 2, ampScale, pen);
+            // Recreate pen on geometry rebuild to pick up theme changes
+            var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
+            _waveformPen = new Pen(new SolidColorBrush(accentColor), 1.0);
+        }
+
+        context.DrawGeometry(null, _waveformPen, _leftGeometry);
+        context.DrawGeometry(null, _waveformPen, _rightGeometry);
 
         // Playback position line
         if (_player is { HasFile: true })
         {
             double x = _playbackPosition * w;
             double opacity = (_isHoveringNear || _isDragging) ? 1.0 : 0.5;
-            var lineBrush = new SolidColorBrush(Colors.White, opacity);
-            var linePen = new Pen(lineBrush, _isDragging ? 2.0 : 1.5);
+            var linePen = new Pen(new SolidColorBrush(Colors.White, opacity), _isDragging ? 2.0 : 1.5);
             context.DrawLine(linePen, new Point(x, 0), new Point(x, h));
         }
     }
 
-    private void DrawChannel(DrawingContext ctx, float[] data, double stepX, double midY, double ampScale, Pen pen)
+    private static StreamGeometry BuildGeometry(float[] data, double stepX, double midY, double ampScale)
     {
         var geometry = new StreamGeometry();
-        using (var geoCtx = geometry.Open())
+        using (var ctx = geometry.Open())
         {
-            bool first = true;
-            for (int i = 0; i < data.Length; i++)
-            {
-                var pt = new Point(i * stepX, midY - data[i] * ampScale);
-                if (first)
-                {
-                    geoCtx.BeginFigure(pt, false);
-                    first = false;
-                }
-                else
-                {
-                    geoCtx.LineTo(pt);
-                }
-            }
+            ctx.BeginFigure(new Point(0, midY - data[0] * ampScale), false);
+            for (int i = 1; i < data.Length; i++)
+                ctx.LineTo(new Point(i * stepX, midY - data[i] * ampScale));
         }
-        ctx.DrawGeometry(null, pen, geometry);
+        return geometry;
     }
 
     #region Position timer & seeking
@@ -237,7 +429,6 @@ public partial class WaveForm : UserControl
             return;
         }
 
-        // Hover detection
         double lineX = _playbackPosition * Bounds.Width;
         bool wasHovering = _isHoveringNear;
         _isHoveringNear = Math.Abs(x - lineX) <= LineHitZone;
