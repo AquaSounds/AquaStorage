@@ -1,38 +1,43 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i="https://github.com/projektanker/icons.avalonia"
-        xmlns:local="clr-namespace:AquaStorage.Views"
         xmlns:h="clr-namespace:AquaStorage.Helpers"
-        x:Class="AquaStorage.MainWindow"
-        Title="{x:Static h:Localizer.AppTitle}"
-        Width="400" Height="600"
+        x:Class="AquaStorage.Views.RestartDialog"
+        Title="{x:Static h:Localizer.Settings}" Width="360" Height="180"
+        WindowStartupLocation="CenterOwner"
         TransparencyLevelHint="Mica"
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="0"
         Background="Transparent">
     <DockPanel>
-        <!-- Top bar: drag + window controls -->
+        <!-- Top bar -->
         <Border DockPanel.Dock="Top" Height="32" Background="Transparent"
                 PointerPressed="OnTopBarPointerPressed">
             <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Text="{x:Static h:Localizer.AppTitle}" VerticalAlignment="Center"
+                <TextBlock Grid.Column="0" Text="{x:Static h:Localizer.Settings}" VerticalAlignment="Center"
                            Margin="12,0,0,0" Opacity="0.6" FontSize="13"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                             Margin="0,0,4,0">
-                    <Button Classes="window-btn" Click="OnMinimize">
-                        <i:Icon Value="mdi-window-minimize" FontSize="14"/>
-                    </Button>
-                    <Button Classes="window-btn" Click="OnMaximize">
-                        <i:Icon Value="mdi-window-maximize" FontSize="14"/>
-                    </Button>
                     <Button Classes="window-btn close-btn" Click="OnClose">
                         <i:Icon Value="mdi-window-close" FontSize="14"/>
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
-        <local:FileManager/>
+
+        <!-- Content -->
+        <StackPanel Margin="16,8,16,16" Spacing="16" VerticalAlignment="Center">
+            <TextBlock Text="{x:Static h:Localizer.RestartRequired}"
+                       Opacity="0.8" FontSize="13" TextWrapping="Wrap"
+                       HorizontalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" Spacing="20" HorizontalAlignment="Center">
+                <Button x:Name="RestartBtn" Content="{x:Static h:Localizer.RestartNow}"
+                        Width="100" Click="RestartBtn_Click"/>
+                <Button x:Name="LaterBtn" Content="{x:Static h:Localizer.RestartLater}"
+                        Width="100" Click="LaterBtn_Click"/>
+            </StackPanel>
+        </StackPanel>
     </DockPanel>
     <Window.Styles>
         <Style Selector="Button.window-btn">

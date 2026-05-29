@@ -7,4 +7,5 @@ public class SettingsConfig
     public long? MaxCacheBytes { get; set; }
     public string? AccentColor { get; set; }
     public bool IsLightTheme { get; set; }
+    public string? Language { get; set; }
 }

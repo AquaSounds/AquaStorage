@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="clr-namespace:AquaStorage.Views"
              xmlns:avalonia="https://github.com/projektanker/icons.avalonia"
+             xmlns:h="clr-namespace:AquaStorage.Helpers"
              mc:Ignorable="d"
              d:DesignWidth="400" d:DesignHeight="600"
              x:Class="AquaStorage.Views.FileManager">
@@ -18,7 +19,7 @@
                     <!-- Add Folder button -->
                     <Button x:Name="BtnAdd" Grid.Row="0" Grid.Column="0"
                             Click="BtnAdd_Click" HorizontalAlignment="Stretch"
-                            ToolTip.Tip="Add Folder">
+                            ToolTip.Tip="{x:Static h:Localizer.AddFolder}">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <avalonia:Icon Value="fa-solid fa-folder-plus" FontSize="14"/>
                         </StackPanel>
@@ -27,7 +28,7 @@
                     <!-- Detail button -->
                     <Button x:Name="BtnDetail" Grid.Row="0" Grid.Column="1"
                             Click="BtnDetail_Click" Width="40"
-                            ToolTip.Tip="Settings">
+                            ToolTip.Tip="{x:Static h:Localizer.Settings}">
                         <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center">
                             <avalonia:Icon Value="mdi-cog" FontSize="14"/>
                         </StackPanel>

@@ -1,4 +1,6 @@
 using System;
+using System.Globalization;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -37,6 +39,22 @@ public partial class App : Application
     private void LoadSettings()
     {
         var config = ConfigHelper.LoadConfig<SettingsConfig>(SettingsConfigKey);
+
+        if (!string.IsNullOrEmpty(config?.Language))
+        {
+            Localizer.SetCulture(new CultureInfo(config.Language));
+        }
+        else
+        {
+            var sysCulture = CultureInfo.CurrentUICulture;
+            var supported = new[] { "en", "zh-Hans", "zh-Hant", "ja" };
+            if (!supported.Contains(sysCulture.Name) &&
+                !supported.Contains(sysCulture.TwoLetterISOLanguageName))
+            {
+                Localizer.SetCulture(new CultureInfo("en"));
+            }
+        }
+
         if (config?.AccentColor is { } hex)
             ApplyAccentColor(Color.Parse(hex));
         if (config?.IsLightTheme == true)

@@ -1,8 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:i="https://github.com/projektanker/icons.avalonia"
+        xmlns:h="clr-namespace:AquaStorage.Helpers"
         x:Class="AquaStorage.Views.SettingsWindow"
-        Title="Settings" Width="600" Height="480"
+        Title="{x:Static h:Localizer.Settings}" Width="600" Height="480"
         WindowStartupLocation="CenterOwner"
         TransparencyLevelHint="Mica"
         ExtendClientAreaToDecorationsHint="True"
@@ -14,17 +15,17 @@
         <Border DockPanel.Dock="Top" Height="32" Background="Transparent"
                 PointerPressed="OnTopBarPointerPressed">
             <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Text="Settings" VerticalAlignment="Center"
+                <TextBlock Grid.Column="0" Text="{x:Static h:Localizer.Settings}" VerticalAlignment="Center"
                            Margin="12,0,0,0" Opacity="0.6" FontSize="13"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                             Margin="0,0,4,0">
-                    <Button Classes="window-btn" Click="OnMinimize" ToolTip.Tip="Minimize">
+                    <Button Classes="window-btn" Click="OnMinimize" ToolTip.Tip="{x:Static h:Localizer.Minimize}">
                         <i:Icon Value="mdi-window-minimize" FontSize="14"/>
                     </Button>
-                    <Button Classes="window-btn" Click="OnMaximize" ToolTip.Tip="Maximize">
+                    <Button Classes="window-btn" Click="OnMaximize" ToolTip.Tip="{x:Static h:Localizer.Maximize}">
                         <i:Icon Value="mdi-window-maximize" FontSize="14"/>
                     </Button>
-                    <Button Classes="window-btn close-btn" Click="OnClose" ToolTip.Tip="Close">
+                    <Button Classes="window-btn close-btn" Click="OnClose" ToolTip.Tip="{x:Static h:Localizer.Close}">
                         <i:Icon Value="mdi-window-close" FontSize="14"/>
                     </Button>
                 </StackPanel>
@@ -35,23 +36,23 @@
         <TabControl Margin="10,0,10,10">
 
             <!-- Folders tab -->
-            <TabItem Header="Folders">
+            <TabItem Header="{x:Static h:Localizer.TabFolders}">
                 <DockPanel Margin="0,8,0,0" LastChildFill="True">
                     <!-- App Data folder path -->
                     <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,10">
-                        <TextBlock Text="App Data" Opacity="0.6" FontSize="12"/>
+                        <TextBlock Text="{x:Static h:Localizer.AppData}" Opacity="0.6" FontSize="12"/>
                         <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
                             <TextBox x:Name="ConfigPathBox" Grid.Column="0"
-                                     Watermark="App data folder path"
+                                     Watermark="{x:Static h:Localizer.WatermarkAppDataPath}"
                                      IsReadOnly="True"/>
                             <Button x:Name="OpenFolderBtn" Grid.Column="1" Width="40"
                                     Click="OpenFolderBtn_Click"
-                                    ToolTip.Tip="Open folder">
+                                    ToolTip.Tip="{x:Static h:Localizer.OpenFolder}">
                                 <i:Icon Value="mdi-folder-open"/>
                             </Button>
                             <Button x:Name="BrowseConfigBtn" Grid.Column="2" Width="40"
                                     Click="BrowseConfigBtn_Click"
-                                    ToolTip.Tip="Set folder location">
+                                    ToolTip.Tip="{x:Static h:Localizer.SetFolderLocation}">
                                 <i:Icon Value="mdi-cog"/>
                             </Button>
                         </Grid>
@@ -59,7 +60,7 @@
 
                     <!-- Search box -->
                     <TextBox DockPanel.Dock="Top" x:Name="SearchBox"
-                             Watermark="Search paths..." Margin="0,0,0,8"
+                             Watermark="{x:Static h:Localizer.WatermarkSearchPaths}" Margin="0,0,0,8"
                              TextChanged="SearchBox_TextChanged"/>
 
                     <!-- Path list -->
@@ -73,7 +74,7 @@
                                                Margin="4 0"/>
                                     <Button x:Name="DeleteBtn" Grid.Column="1" Width="80" Margin="4 0"
                                             Click="DeleteBtn_Click"
-                                            ToolTip.Tip="Delete">
+                                            ToolTip.Tip="{x:Static h:Localizer.Delete}">
                                         <i:Icon Value="mdi-trash-can"/>
                                     </Button>
                                 </Grid>
@@ -84,44 +85,50 @@
             </TabItem>
 
             <!-- Appearance tab -->
-            <TabItem Header="Appearance">
+            <TabItem Header="{x:Static h:Localizer.TabAppearance}">
                 <StackPanel Spacing="12" Margin="0,12,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Light Theme" Opacity="0.6" FontSize="12"
+                        <TextBlock Text="{x:Static h:Localizer.LightTheme}" Opacity="0.6" FontSize="12"
                                    VerticalAlignment="Center" Width="100"/>
                         <ToggleSwitch x:Name="ThemeToggle"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Theme Color" Opacity="0.6" FontSize="12"
+                        <TextBlock Text="{x:Static h:Localizer.ThemeColor}" Opacity="0.6" FontSize="12"
                                    VerticalAlignment="Center" Width="100"/>
                         <Button x:Name="ThemeColorBtn" Click="ThemeColorBtn_Click"
-                                ToolTip.Tip="Theme Color">
+                                ToolTip.Tip="{x:Static h:Localizer.ThemeColor}">
                             <i:Icon Value="mdi-palette"/>
                         </Button>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Font Size" Opacity="0.6" FontSize="12"
+                        <TextBlock Text="{x:Static h:Localizer.FontSize}" Opacity="0.6" FontSize="12"
                                    VerticalAlignment="Center" Width="100"/>
                         <TextBox x:Name="DefaultFontSizeBox" Width="80" Watermark="12"
                                  TextChanged="DefaultFontSizeBox_TextChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="{x:Static h:Localizer.Language}" Opacity="0.6" FontSize="12"
+                                   VerticalAlignment="Center" Width="100"/>
+                        <ComboBox x:Name="LanguageCombo" Width="160"
+                                  SelectionChanged="LanguageCombo_SelectionChanged"/>
                     </StackPanel>
                 </StackPanel>
             </TabItem>
 
             <!-- Storage tab -->
-            <TabItem Header="Storage">
+            <TabItem Header="{x:Static h:Localizer.TabStorage}">
                 <StackPanel Spacing="12" Margin="0,12,0,0">
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Max Cache" Opacity="0.6" FontSize="12"
+                        <TextBlock Text="{x:Static h:Localizer.MaxCache}" Opacity="0.6" FontSize="12"
                                    VerticalAlignment="Center" Width="100"/>
-                        <TextBox x:Name="MaxCacheBox" Width="120" Watermark="500MB"
+                        <TextBox x:Name="MaxCacheBox" Width="120" Watermark="{x:Static h:Localizer.WatermarkCacheSize}"
                                  TextChanged="MaxCacheBox_TextChanged"/>
                     </StackPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="Clear Cache" Opacity="0.6" FontSize="12"
+                        <TextBlock Text="{x:Static h:Localizer.ClearCache}" Opacity="0.6" FontSize="12"
                                    VerticalAlignment="Center" Width="100"/>
                         <Button x:Name="ClearCacheBtn" Click="ClearCacheBtn_Click"
-                                ToolTip.Tip="Clear Cache">
+                                ToolTip.Tip="{x:Static h:Localizer.ClearCache}">
                             <i:Icon Value="mdi-broom"/>
                         </Button>
                     </StackPanel>

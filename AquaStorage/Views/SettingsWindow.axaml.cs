@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Avalonia.Controls;
@@ -20,6 +21,7 @@ public partial class SettingsWindow : Window
 
     private readonly List<string> _pathList;
     private bool _suppressThemeToggle;
+    private bool _suppressLanguageChange;
 
     public event Action<string>? OnPathDeleted;
     public event Action<string>? OnConfigPathChanged;
@@ -50,6 +52,25 @@ public partial class SettingsWindow : Window
                 ConfigHelper.SaveConfig(ConfigPathKey, cfg);
             }
         };
+
+        // Language selector
+        _suppressLanguageChange = true;
+        LanguageCombo.Items.Add(new ComboBoxItem { Content = "English", Tag = "en" });
+        LanguageCombo.Items.Add(new ComboBoxItem { Content = "简体中文", Tag = "zh-Hans" });
+        LanguageCombo.Items.Add(new ComboBoxItem { Content = "繁體中文", Tag = "zh-Hant" });
+        LanguageCombo.Items.Add(new ComboBoxItem { Content = "日本語", Tag = "ja" });
+
+        string lang = config?.Language ?? CultureInfo.CurrentUICulture.Name;
+        for (int i = 0; i < LanguageCombo.ItemCount; i++)
+        {
+            if (LanguageCombo.Items[i] is ComboBoxItem item && item.Tag?.ToString() == lang)
+            {
+                LanguageCombo.SelectedIndex = i;
+                break;
+            }
+        }
+        if (LanguageCombo.SelectedIndex < 0) LanguageCombo.SelectedIndex = 0;
+        _suppressLanguageChange = false;
     }
 
     private string GetDefaultConfigPath()
@@ -111,7 +132,7 @@ public partial class SettingsWindow : Window
     {
         var folder = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
-            Title = "Select config folder",
+            Title = Localizer.Instance["SelectConfigFolder"],
             AllowMultiple = false
         });
 
@@ -174,6 +195,21 @@ public partial class SettingsWindow : Window
     {
         if (double.TryParse(DefaultFontSizeBox.Text, out double size))
             CacheService.SetDefaultFontSize(size);
+    }
+
+    private void LanguageCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressLanguageChange) return;
+        if (LanguageCombo.SelectedItem is not ComboBoxItem item) return;
+        string? lang = item.Tag?.ToString();
+        if (string.IsNullOrEmpty(lang)) return;
+
+        var cfg = ConfigHelper.LoadConfig<SettingsConfig>(ConfigPathKey) ?? new SettingsConfig();
+        cfg.Language = lang;
+        ConfigHelper.SaveConfig(ConfigPathKey, cfg);
+
+        var dialog = new RestartDialog();
+        dialog.ShowDialog(this);
     }
 
     private void OnTopBarPointerPressed(object? sender, PointerPressedEventArgs e)

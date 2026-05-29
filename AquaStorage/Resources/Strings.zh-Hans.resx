@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- App / Window -->
+  <data name="AppTitle" xml:space="preserve">
+    <value>AquaStorage</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="ThemeColor" xml:space="preserve">
+    <value>主题颜色</value>
+  </data>
+  <data name="Confirm" xml:space="preserve">
+    <value>确认</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>关闭</value>
+  </data>
+  <data name="Minimize" xml:space="preserve">
+    <value>最小化</value>
+  </data>
+  <data name="Maximize" xml:space="preserve">
+    <value>最大化</value>
+  </data>
+
+  <!-- FileManager -->
+  <data name="AddFolder" xml:space="preserve">
+    <value>添加文件夹</value>
+  </data>
+  <data name="SelectFolder" xml:space="preserve">
+    <value>选择文件夹</value>
+  </data>
+  <data name="TipNoSavedPaths" xml:space="preserve">
+    <value>没有已保存的路径。点击"添加文件夹"开始使用。</value>
+  </data>
+  <data name="TipLoadingPaths" xml:space="preserve">
+    <value>正在加载 {0} 个已保存路径...</value>
+  </data>
+  <data name="TipLoadedFromCache" xml:space="preserve">
+    <value>从缓存加载了 {0} 个路径</value>
+  </data>
+  <data name="TipNotFound" xml:space="preserve">
+    <value>未找到：{0}（已跳过）</value>
+  </data>
+  <data name="TipLoadedPaths" xml:space="preserve">
+    <value>已加载 {0} 个路径</value>
+  </data>
+  <data name="TipLoadFailed" xml:space="preserve">
+    <value>加载失败：{0}</value>
+  </data>
+  <data name="TipAlreadyAdded" xml:space="preserve">
+    <value>已添加：{0}</value>
+  </data>
+  <data name="TipFailedToLoad" xml:space="preserve">
+    <value>加载失败 {0}：{1}</value>
+  </data>
+  <data name="TipAddedFolders" xml:space="preserve">
+    <value>已添加 {0} 个文件夹</value>
+  </data>
+  <data name="TipNoNewFolders" xml:space="preserve">
+    <value>没有添加新文件夹</value>
+  </data>
+  <data name="TipFolderSelectionFailed" xml:space="preserve">
+    <value>文件夹选择失败：{0}</value>
+  </data>
+  <data name="TipRemoved" xml:space="preserve">
+    <value>已移除：{0}</value>
+  </data>
+  <data name="TipFontSize" xml:space="preserve">
+    <value>字体大小：{0}（默认：{1}）</value>
+  </data>
+
+  <!-- SettingsWindow - Folders tab -->
+  <data name="TabFolders" xml:space="preserve">
+    <value>文件夹</value>
+  </data>
+  <data name="AppData" xml:space="preserve">
+    <value>应用数据</value>
+  </data>
+  <data name="WatermarkAppDataPath" xml:space="preserve">
+    <value>应用数据文件夹路径</value>
+  </data>
+  <data name="OpenFolder" xml:space="preserve">
+    <value>打开文件夹</value>
+  </data>
+  <data name="SetFolderLocation" xml:space="preserve">
+    <value>设置文件夹位置</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="WatermarkSearchPaths" xml:space="preserve">
+    <value>搜索路径...</value>
+  </data>
+  <data name="SelectConfigFolder" xml:space="preserve">
+    <value>选择配置文件夹</value>
+  </data>
+
+  <!-- SettingsWindow - Appearance tab -->
+  <data name="TabAppearance" xml:space="preserve">
+    <value>外观</value>
+  </data>
+  <data name="LightTheme" xml:space="preserve">
+    <value>浅色主题</value>
+  </data>
+  <data name="FontSize" xml:space="preserve">
+    <value>字体大小</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>语言</value>
+  </data>
+  <data name="RestartRequired" xml:space="preserve">
+    <value>语言已更改，请重启应用。</value>
+  </data>
+  <data name="RestartNow" xml:space="preserve">
+    <value>立即重启</value>
+  </data>
+  <data name="RestartLater" xml:space="preserve">
+    <value>稍后</value>
+  </data>
+
+  <!-- SettingsWindow - Storage tab -->
+  <data name="TabStorage" xml:space="preserve">
+    <value>存储</value>
+  </data>
+  <data name="MaxCache" xml:space="preserve">
+    <value>最大缓存</value>
+  </data>
+  <data name="WatermarkCacheSize" xml:space="preserve">
+    <value>500MB</value>
+  </data>
+  <data name="ClearCache" xml:space="preserve">
+    <value>清除缓存</value>
+  </data>
+</root>

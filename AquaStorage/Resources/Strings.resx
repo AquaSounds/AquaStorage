@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" msdata:Ordinal="0" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- App / Window -->
+  <data name="AppTitle" xml:space="preserve">
+    <value>AquaStorage</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="ThemeColor" xml:space="preserve">
+    <value>Theme Color</value>
+  </data>
+  <data name="Confirm" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Minimize" xml:space="preserve">
+    <value>Minimize</value>
+  </data>
+  <data name="Maximize" xml:space="preserve">
+    <value>Maximize</value>
+  </data>
+
+  <!-- FileManager -->
+  <data name="AddFolder" xml:space="preserve">
+    <value>Add Folder</value>
+  </data>
+  <data name="SelectFolder" xml:space="preserve">
+    <value>Select folder</value>
+  </data>
+  <data name="TipNoSavedPaths" xml:space="preserve">
+    <value>No saved paths. Click 'Add Folder' to get started.</value>
+  </data>
+  <data name="TipLoadingPaths" xml:space="preserve">
+    <value>Loading {0} saved path(s)...</value>
+  </data>
+  <data name="TipLoadedFromCache" xml:space="preserve">
+    <value>Loaded {0} path(s) from cache</value>
+  </data>
+  <data name="TipNotFound" xml:space="preserve">
+    <value>Not found: {0} (skipped)</value>
+  </data>
+  <data name="TipLoadedPaths" xml:space="preserve">
+    <value>Loaded {0} path(s)</value>
+  </data>
+  <data name="TipLoadFailed" xml:space="preserve">
+    <value>Load failed: {0}</value>
+  </data>
+  <data name="TipAlreadyAdded" xml:space="preserve">
+    <value>Already added: {0}</value>
+  </data>
+  <data name="TipFailedToLoad" xml:space="preserve">
+    <value>Failed to load {0}: {1}</value>
+  </data>
+  <data name="TipAddedFolders" xml:space="preserve">
+    <value>Added {0} folder(s)</value>
+  </data>
+  <data name="TipNoNewFolders" xml:space="preserve">
+    <value>No new folders added</value>
+  </data>
+  <data name="TipFolderSelectionFailed" xml:space="preserve">
+    <value>Folder selection failed: {0}</value>
+  </data>
+  <data name="TipRemoved" xml:space="preserve">
+    <value>Removed: {0}</value>
+  </data>
+  <data name="TipFontSize" xml:space="preserve">
+    <value>Font size: {0}  (Default: {1})</value>
+  </data>
+
+  <!-- SettingsWindow - Folders tab -->
+  <data name="TabFolders" xml:space="preserve">
+    <value>Folders</value>
+  </data>
+  <data name="AppData" xml:space="preserve">
+    <value>App Data</value>
+  </data>
+  <data name="WatermarkAppDataPath" xml:space="preserve">
+    <value>App data folder path</value>
+  </data>
+  <data name="OpenFolder" xml:space="preserve">
+    <value>Open folder</value>
+  </data>
+  <data name="SetFolderLocation" xml:space="preserve">
+    <value>Set folder location</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="WatermarkSearchPaths" xml:space="preserve">
+    <value>Search paths...</value>
+  </data>
+  <data name="SelectConfigFolder" xml:space="preserve">
+    <value>Select config folder</value>
+  </data>
+
+  <!-- SettingsWindow - Appearance tab -->
+  <data name="TabAppearance" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="LightTheme" xml:space="preserve">
+    <value>Light Theme</value>
+  </data>
+  <data name="FontSize" xml:space="preserve">
+    <value>Font Size</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="RestartRequired" xml:space="preserve">
+    <value>Language changed. Please restart the app.</value>
+  </data>
+  <data name="RestartNow" xml:space="preserve">
+    <value>Restart Now</value>
+  </data>
+  <data name="RestartLater" xml:space="preserve">
+    <value>Later</value>
+  </data>
+
+  <!-- SettingsWindow - Storage tab -->
+  <data name="TabStorage" xml:space="preserve">
+    <value>Storage</value>
+  </data>
+  <data name="MaxCache" xml:space="preserve">
+    <value>Max Cache</value>
+  </data>
+  <data name="WatermarkCacheSize" xml:space="preserve">
+    <value>500MB</value>
+  </data>
+  <data name="ClearCache" xml:space="preserve">
+    <value>Clear Cache</value>
+  </data>
+</root>

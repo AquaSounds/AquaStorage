@@ -74,13 +74,13 @@ public partial class FileManager : UserControl
     {
         if (AddedPaths.Count == 0)
         {
-            ShowTip("No saved paths. Click 'Add Folder' to get started.", false);
+            ShowTip(Localizer.Instance["TipNoSavedPaths"], false);
             return;
         }
 
         _isLoading = true;
         UpdateLoadingUI(true);
-        ShowTip($"Loading {AddedPaths.Count} saved path(s)...", false);
+        ShowTip(string.Format(Localizer.Instance["TipLoadingPaths"], AddedPaths.Count), false);
 
         try
         {
@@ -93,7 +93,7 @@ public partial class FileManager : UserControl
                     var rootItem = BuildTreeItemFromCache(node);
                     await Dispatcher.UIThread.InvokeAsync(() => TreeFiles.Items.Add(rootItem));
                 }
-                ShowTip($"Loaded {AddedPaths.Count} path(s) from cache", false);
+                ShowTip(string.Format(Localizer.Instance["TipLoadedFromCache"], AddedPaths.Count), false);
                 _isLoading = false;
                 UpdateLoadingUI(false);
                 return;
@@ -106,7 +106,7 @@ public partial class FileManager : UserControl
             {
                 if (!Directory.Exists(path))
                 {
-                    ShowTip($"Not found: {path} (skipped)", true);
+                    ShowTip(string.Format(Localizer.Instance["TipNotFound"], path), true);
                     continue;
                 }
 
@@ -128,11 +128,11 @@ public partial class FileManager : UserControl
             if (treeDataRoots.Count > 0)
                 await Task.Run(() => CacheHelper.SaveFolderTree(treeDataRoots, AddedPaths));
 
-            ShowTip($"Loaded {AddedPaths.Count} path(s)", false);
+            ShowTip(string.Format(Localizer.Instance["TipLoadedPaths"], AddedPaths.Count), false);
         }
         catch (Exception ex)
         {
-            ShowTip($"Load failed: {ex.Message}", true);
+            ShowTip(string.Format(Localizer.Instance["TipLoadFailed"], ex.Message), true);
         }
         finally
         {
@@ -155,7 +155,7 @@ public partial class FileManager : UserControl
         try
         {
             var folders = await topLevel.StorageProvider.OpenFolderPickerAsync(
-                new FolderPickerOpenOptions { Title = "Select folder", AllowMultiple = true });
+                new FolderPickerOpenOptions { Title = Localizer.Instance["SelectFolder"], AllowMultiple = true });
 
             if (folders.Count == 0) return;
 
@@ -170,12 +170,12 @@ public partial class FileManager : UserControl
 
                 if (!Directory.Exists(inputPath))
                 {
-                    ShowTip($"Not found: {inputPath} (skipped)", true);
+                    ShowTip(string.Format(Localizer.Instance["TipNotFound"], inputPath), true);
                     continue;
                 }
                 if (AddedPaths.Contains(inputPath))
                 {
-                    ShowTip($"Already added: {inputPath}", true);
+                    ShowTip(string.Format(Localizer.Instance["TipAlreadyAdded"], inputPath), true);
                     continue;
                 }
 
@@ -204,15 +204,15 @@ public partial class FileManager : UserControl
                 }
                 catch (Exception ex)
                 {
-                    ShowTip($"Failed to load {inputPath}: {ex.Message}", true);
+                    ShowTip(string.Format(Localizer.Instance["TipFailedToLoad"], inputPath, ex.Message), true);
                 }
             }
 
-            ShowTip(added > 0 ? $"Added {added} folder(s)" : "No new folders added", false);
+            ShowTip(added > 0 ? string.Format(Localizer.Instance["TipAddedFolders"], added) : Localizer.Instance["TipNoNewFolders"], false);
         }
         catch (Exception ex)
         {
-            ShowTip($"Folder selection failed: {ex.Message}", true);
+            ShowTip(string.Format(Localizer.Instance["TipFolderSelectionFailed"], ex.Message), true);
         }
         finally
         {
@@ -233,7 +233,7 @@ public partial class FileManager : UserControl
                 SaveConfig();
                 RemoveTreeItemByPath(deletedPath);
                 CacheHelper.ClearAll(); // invalidate cache
-                ShowTip($"Removed: {deletedPath}", false);
+                ShowTip(string.Format(Localizer.Instance["TipRemoved"], deletedPath), false);
             }
         };
 
@@ -653,7 +653,7 @@ public partial class FileManager : UserControl
 
         _treeFontSize = Math.Clamp(_treeFontSize + (e.Delta.Y > 0 ? 1 : -1), 8, 32);
         UpdateTreeFontSizes(TreeFiles.Items);
-        ShowTip($"Font size: {_treeFontSize:F0}  (Default: {CacheService.DefaultFontSize:F0})", false);
+        ShowTip(string.Format(Localizer.Instance["TipFontSize"], _treeFontSize.ToString("F0"), CacheService.DefaultFontSize.ToString("F0")), false);
         e.Handled = true;
     }
 
@@ -663,7 +663,7 @@ public partial class FileManager : UserControl
 
         _treeFontSize = Math.Clamp(_treeFontSize + (e.Delta.Y > 0 ? 1 : -1), 8, 32);
         UpdateTreeFontSizes(TreeFiles.Items);
-        ShowTip($"Font size: {_treeFontSize:F0}  (Default: {CacheService.DefaultFontSize:F0})", false);
+        ShowTip(string.Format(Localizer.Instance["TipFontSize"], _treeFontSize.ToString("F0"), CacheService.DefaultFontSize.ToString("F0")), false);
         e.Handled = true;
     }
 
