@@ -6,4 +6,5 @@ public class SettingsConfig
     public double? DefaultFontSize { get; set; }
     public long? MaxCacheBytes { get; set; }
     public string? AccentColor { get; set; }
+    public bool IsLightTheme { get; set; }
 }

@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Styling;
 
 namespace AquaStorage.Views;
 
@@ -62,13 +63,15 @@ public class VolumeKnob : Control
     private Point _tempPress;
 
     private readonly Pen _stroke = new();
-    private readonly IBrush _whiteBrush = new SolidColorBrush(Colors.White, 0.2);
+
+    private static bool IsLightTheme => Application.Current?.ActualThemeVariant == ThemeVariant.Light;
 
     public VolumeKnob()
     {
         ClipToBounds = false;
         IsHitTestVisible = true;
         App.AccentColorChanged += _ => InvalidateVisual();
+        App.ThemeChanged += () => InvalidateVisual();
     }
 
     static VolumeKnob()
@@ -99,11 +102,16 @@ public class VolumeKnob : Control
         else
             _stroke.Thickness = 1;
 
+        var bodyColor = IsLightTheme ? Color.Parse("#E0E0E0") : Color.Parse("#232323");
+        var shadowColor = IsLightTheme ? Color.Parse("#30000000") : Color.Parse("#33000000");
+        var dotEdgeBrush = IsLightTheme ? new SolidColorBrush(Colors.Black, 0.2) : new SolidColorBrush(Colors.White, 0.2);
+        var textColor = IsLightTheme ? Color.Parse("#CC000000") : Color.FromArgb(160, 255, 255, 255);
+
         // Shadow
-        context.DrawEllipse(new SolidColorBrush(Colors.Black, 0.2), null,
+        context.DrawEllipse(new SolidColorBrush(shadowColor), null,
             center, radius * 1.2, radius * 1.2);
         // Body
-        context.DrawEllipse(Brush.Parse("#232323"), _stroke, center, radius, radius);
+        context.DrawEllipse(new SolidColorBrush(bodyColor), _stroke, center, radius, radius);
 
         // Border limits
         const double border = 0.16;
@@ -116,21 +124,21 @@ public class VolumeKnob : Control
         if (_hover || _pressed)
         {
             // Default value dot
-            context.DrawEllipse(_whiteBrush, null,
+            context.DrawEllipse(dotEdgeBrush, null,
                 new Point(center.X + radius * 1.5 * -double.Sin(defaultPercent * double.Pi * 2),
                     center.Y + radius * 1.5 * double.Cos(defaultPercent * double.Pi * 2)), 2, 2);
             // Min edge dot
-            context.DrawEllipse(_whiteBrush, null,
+            context.DrawEllipse(dotEdgeBrush, null,
                 new Point(center.X + radius * 1.5 * -double.Sin(border * double.Pi * 2),
                     center.Y + radius * 1.5 * double.Cos(border * double.Pi * 2)), 2, 2);
             // Max edge dot
-            context.DrawEllipse(_whiteBrush, null,
+            context.DrawEllipse(dotEdgeBrush, null,
                 new Point(center.X + radius * 1.5 * -double.Sin((1 - border) * double.Pi * 2),
                     center.Y + radius * 1.5 * double.Cos((1 - border) * double.Pi * 2)), 2, 2);
         }
 
         // Indicator dot
-        context.DrawEllipse(Brush.Parse("#232323"), new Pen(new SolidColorBrush(accentColor)),
+        context.DrawEllipse(new SolidColorBrush(bodyColor), new Pen(new SolidColorBrush(accentColor)),
             new Point(
                 center.X + radius * -double.Sin(percent * double.Pi * 2),
                 center.Y + radius * double.Cos(percent * double.Pi * 2)),
@@ -140,7 +148,7 @@ public class VolumeKnob : Control
         if (_hover || _pressed)
         {
             string label = Value >= 0 ? "0 dB" : $"{Value:F0} dB";
-            var textBrush = new SolidColorBrush(Color.FromArgb(160, 255, 255, 255));
+            var textBrush = new SolidColorBrush(textColor);
             var ft = new FormattedText(label,
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,

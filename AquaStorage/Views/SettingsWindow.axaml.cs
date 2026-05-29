@@ -7,7 +7,6 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
-using Avalonia.VisualTree;
 using AquaStorage.Helpers;
 using AquaStorage.Models;
 using AquaStorage.Services;
@@ -20,6 +19,7 @@ public partial class SettingsWindow : Window
     private const string DefaultAppFolder = "AquaStorage";
 
     private readonly List<string> _pathList;
+    private bool _suppressThemeToggle;
 
     public event Action<string>? OnPathDeleted;
     public event Action<string>? OnConfigPathChanged;
@@ -34,6 +34,22 @@ public partial class SettingsWindow : Window
         _pathList = paths;
         LoadConfigPath();
         RefreshPathList();
+
+        _suppressThemeToggle = true;
+        var config = ConfigHelper.LoadConfig<SettingsConfig>(ConfigPathKey);
+        ThemeToggle.IsChecked = config?.IsLightTheme ?? false;
+        _suppressThemeToggle = false;
+        ThemeToggle.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == ToggleSwitch.IsCheckedProperty && !_suppressThemeToggle)
+            {
+                bool isLight = ThemeToggle.IsChecked == true;
+                App.ApplyTheme(isLight);
+                var cfg = ConfigHelper.LoadConfig<SettingsConfig>(ConfigPathKey) ?? new SettingsConfig();
+                cfg.IsLightTheme = isLight;
+                ConfigHelper.SaveConfig(ConfigPathKey, cfg);
+            }
+        };
     }
 
     private string GetDefaultConfigPath()
@@ -137,6 +153,7 @@ public partial class SettingsWindow : Window
         recolorWin.ShowDialog(this);
     }
 
+
     private void ClearCacheBtn_Click(object? sender, RoutedEventArgs e)
     {
         CacheService.ClearAll();
@@ -157,20 +174,6 @@ public partial class SettingsWindow : Window
     {
         if (double.TryParse(DefaultFontSizeBox.Text, out double size))
             CacheService.SetDefaultFontSize(size);
-    }
-
-    private void UpdateListBoxFontSizes()
-    {
-        for (int i = 0; i < PathListBox.ItemCount; i++)
-        {
-            var container = PathListBox.ContainerFromIndex(i);
-            if (container is not ListBoxItem lbi) continue;
-            foreach (var child in lbi.GetVisualDescendants())
-            {
-                if (child is TextBlock tb)
-                    tb.FontSize = _listFontSize;
-            }
-        }
     }
 
     private void OnTopBarPointerPressed(object? sender, PointerPressedEventArgs e)

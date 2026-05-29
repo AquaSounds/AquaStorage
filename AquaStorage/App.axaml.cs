@@ -6,6 +6,7 @@ using Avalonia.Media;
 using AquaStorage.Helpers;
 using AquaStorage.Models;
 using AquaStorage.Services;
+using Avalonia.Styling;
 
 namespace AquaStorage;
 
@@ -13,6 +14,7 @@ public partial class App : Application
 {
     private const string SettingsConfigKey = "Config/SettingsConfig";
     public static event Action<Color>? AccentColorChanged;
+    public static event Action? ThemeChanged;
 
     public override void Initialize()
     {
@@ -22,7 +24,7 @@ public partial class App : Application
     public override void OnFrameworkInitializationCompleted()
     {
         CacheService.Initialize();
-        LoadAccentColor();
+        LoadSettings();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -32,13 +34,13 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    private void LoadAccentColor()
+    private void LoadSettings()
     {
         var config = ConfigHelper.LoadConfig<SettingsConfig>(SettingsConfigKey);
         if (config?.AccentColor is { } hex)
-        {
             ApplyAccentColor(Color.Parse(hex));
-        }
+        if (config?.IsLightTheme == true)
+            ApplyTheme(true);
     }
 
     public static void ApplyAccentColor(Color color)
@@ -46,5 +48,12 @@ public partial class App : Application
         if (Current?.Resources.ContainsKey("AccentPrimary") == true)
             Current.Resources["AccentPrimary"] = color;
         AccentColorChanged?.Invoke(color);
+    }
+
+    public static void ApplyTheme(bool isLight)
+    {
+        if (Current != null)
+            Current.RequestedThemeVariant = isLight ? ThemeVariant.Light : ThemeVariant.Dark;
+        ThemeChanged?.Invoke();
     }
 }

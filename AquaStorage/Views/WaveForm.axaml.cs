@@ -51,6 +51,7 @@ public partial class WaveForm : UserControl
         IsHitTestVisible = true;
         ClipToBounds = true;
         App.AccentColorChanged += _ => { InvalidateGeometry(); InvalidateVisual(); };
+        App.ThemeChanged += () => InvalidateVisual();
     }
 
     public async void RenderWaveform(string filePath)
@@ -432,7 +433,9 @@ public partial class WaveForm : UserControl
         {
             double x = _playbackPosition * w;
             double opacity = (_isHoveringNear || _isDragging) ? 1.0 : 0.5;
-            var linePen = new Pen(new SolidColorBrush(Colors.White, opacity), _isDragging ? 2.0 : 1.5);
+            bool isLight = Application.Current?.ActualThemeVariant == Avalonia.Styling.ThemeVariant.Light;
+            var lineColor = isLight ? Colors.Black : Colors.White;
+            var linePen = new Pen(new SolidColorBrush(lineColor, opacity), _isDragging ? 2.0 : 1.5);
             context.DrawLine(linePen, new Point(x, 0), new Point(x, h));
         }
     }
