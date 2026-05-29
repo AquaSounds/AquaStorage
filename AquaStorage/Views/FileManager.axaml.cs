@@ -455,6 +455,48 @@ public partial class FileManager : UserControl
         var treeItem = new TreeViewItem { IsExpanded = false };
         treeItem.PointerWheelChanged += OnItemWheelChanged;
 
+        // Drag support — only trigger after significant pointer movement
+        var itemPressed = false;
+        var pressPoint = new Point();
+        const double DragThreshold = 10.0;
+
+        treeItem.PointerPressed += (_, e) =>
+        {
+            itemPressed = true;
+            pressPoint = e.GetPosition(treeItem);
+        };
+        treeItem.PointerReleased += (_, _) => itemPressed = false;
+        treeItem.PointerMoved += async (sender, args) =>
+        {
+            if (!itemPressed || sender is not TreeViewItem item) return;
+
+            var pos = args.GetPosition(item);
+            if (Math.Abs(pos.X - pressPoint.X) < DragThreshold &&
+                Math.Abs(pos.Y - pressPoint.Y) < DragThreshold)
+                return;
+
+            itemPressed = false;
+
+            string path = GetFullPath(item);
+            if (!File.Exists(path) || !AudioFormats.IsAudioFile(path))
+                return;
+
+            var dataTransfer = new DataTransfer();
+            var top = TopLevel.GetTopLevel(this);
+            if (top != null)
+            {
+                var storageFile = await top.StorageProvider.TryGetFileFromPathAsync(path);
+                if (storageFile == null) return;
+
+                var dataItem = new DataTransferItem();
+                dataItem.Set(DataFormat.File, storageFile);
+                dataTransfer.Add(dataItem);
+            }
+
+            _audioPlayer.Stop();
+            await DragDrop.DoDragDropAsync(args, dataTransfer, DragDropEffects.Copy);
+        };
+
         var content = new StackPanel
         {
             Orientation = Orientation.Horizontal,
