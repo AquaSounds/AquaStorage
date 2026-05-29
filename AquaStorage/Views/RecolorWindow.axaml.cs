@@ -15,7 +15,7 @@ public partial class RecolorWindow : Window
     public RecolorWindow()
     {
         InitializeComponent();
-        var config = ConfigHelper.LoadConfig<ThemeConfig>("Config/ThemeConfig");
+        var config = ConfigHelper.LoadConfig<SettingsConfig>("Config/SettingsConfig");
         if (config?.AccentColor is { } hex)
         {
             MyColorPicker.SelectedColor = Color.Parse(hex);

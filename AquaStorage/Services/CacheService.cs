@@ -1,3 +1,4 @@
+using System;
 using AquaStorage.Helpers;
 using AquaStorage.Models;
 
@@ -5,15 +6,18 @@ namespace AquaStorage.Services;
 
 public static class CacheService
 {
-    private const string ConfigKey = "Config/CacheConfig";
+    private const string SettingsConfigKey = "Config/SettingsConfig";
     private const long DefaultMaxCacheBytes = 512 * 1024L; // 512KB
+    private const double DefaultFontSizeValue = 12;
 
     public static long? MaxCacheBytes { get; private set; }
+    public static double DefaultFontSize { get; private set; } = DefaultFontSizeValue;
 
     public static void Initialize()
     {
-        var config = ConfigHelper.LoadConfig<CacheSettings>(ConfigKey);
+        var config = ConfigHelper.LoadConfig<SettingsConfig>(SettingsConfigKey);
         MaxCacheBytes = config?.MaxCacheBytes ?? DefaultMaxCacheBytes;
+        DefaultFontSize = config?.DefaultFontSize ?? DefaultFontSizeValue;
         CacheHelper.SetMaxCacheBytes(MaxCacheBytes);
     }
 
@@ -21,9 +25,17 @@ public static class CacheService
     {
         MaxCacheBytes = bytes;
         CacheHelper.SetMaxCacheBytes(bytes);
-        var config = ConfigHelper.LoadConfig<CacheSettings>(ConfigKey) ?? new CacheSettings();
+        var config = ConfigHelper.LoadConfig<SettingsConfig>(SettingsConfigKey) ?? new SettingsConfig();
         config.MaxCacheBytes = bytes;
-        ConfigHelper.SaveConfig(ConfigKey, config);
+        ConfigHelper.SaveConfig(SettingsConfigKey, config);
+    }
+
+    public static void SetDefaultFontSize(double size)
+    {
+        DefaultFontSize = Math.Clamp(size, 8, 32);
+        var config = ConfigHelper.LoadConfig<SettingsConfig>(SettingsConfigKey) ?? new SettingsConfig();
+        config.DefaultFontSize = DefaultFontSize;
+        ConfigHelper.SaveConfig(SettingsConfigKey, config);
     }
 
     public static void ClearAll() => CacheHelper.ClearAll();

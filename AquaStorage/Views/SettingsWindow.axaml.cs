@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.VisualTree;
 using AquaStorage.Helpers;
 using AquaStorage.Models;
 using AquaStorage.Services;
@@ -24,6 +25,8 @@ public partial class SettingsWindow : Window
     public event Action<string>? OnConfigPathChanged;
 
     public SettingsWindow() : this(new List<string>()) { }
+
+    private double _listFontSize = CacheService.DefaultFontSize;
 
     public SettingsWindow(List<string> paths)
     {
@@ -47,6 +50,7 @@ public partial class SettingsWindow : Window
         MaxCacheBox.Text = CacheService.MaxCacheBytes is > 0
             ? CacheService.FormatBytes(CacheService.MaxCacheBytes.Value)
             : string.Empty;
+        DefaultFontSizeBox.Text = CacheService.DefaultFontSize.ToString("F0");
     }
 
     private void SaveConfigPath(string path)
@@ -126,10 +130,9 @@ public partial class SettingsWindow : Window
         recolorWin.Submit += (_, color) =>
         {
             App.ApplyAccentColor(color);
-            ConfigHelper.SaveConfig("Config/ThemeConfig", new ThemeConfig
-            {
-                AccentColor = color.ToString()
-            });
+            var config = ConfigHelper.LoadConfig<SettingsConfig>(ConfigPathKey) ?? new SettingsConfig();
+            config.AccentColor = color.ToString();
+            ConfigHelper.SaveConfig(ConfigPathKey, config);
         };
         recolorWin.ShowDialog(this);
     }
@@ -147,6 +150,26 @@ public partial class SettingsWindow : Window
         {
             var bytes = CacheService.ParseSize(MaxCacheBox.Text);
             if (bytes is > 0) CacheService.SetMaxCache(bytes);
+        }
+    }
+
+    private void DefaultFontSizeBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (double.TryParse(DefaultFontSizeBox.Text, out double size))
+            CacheService.SetDefaultFontSize(size);
+    }
+
+    private void UpdateListBoxFontSizes()
+    {
+        for (int i = 0; i < PathListBox.ItemCount; i++)
+        {
+            var container = PathListBox.ContainerFromIndex(i);
+            if (container is not ListBoxItem lbi) continue;
+            foreach (var child in lbi.GetVisualDescendants())
+            {
+                if (child is TextBlock tb)
+                    tb.FontSize = _listFontSize;
+            }
         }
     }
 

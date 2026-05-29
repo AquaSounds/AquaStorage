@@ -62,6 +62,12 @@
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
                         HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
                 <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <TextBlock Text="Font Size" Opacity="0.6" FontSize="12"
+                               VerticalAlignment="Center"/>
+                    <TextBox x:Name="DefaultFontSizeBox" Width="50" Watermark="12"
+                             TextChanged="DefaultFontSizeBox_TextChanged"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                     <TextBlock Text="Max Cache" Opacity="0.6" FontSize="12"
                                VerticalAlignment="Center"/>
                     <TextBox x:Name="MaxCacheBox" Width="80" Watermark="500MB"
@@ -82,7 +88,7 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="{Binding}"
+                            <TextBlock x:Name="PathText" Text="{Binding}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Margin="4 0"/>

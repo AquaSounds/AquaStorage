@@ -43,6 +43,7 @@ public partial class FileManager : UserControl
 
     private readonly AudioPlayerService _audioPlayer = new();
     private bool _suppressSelectionChanged;
+    private double _treeFontSize = CacheService.DefaultFontSize;
 
     public FileManager()
     {
@@ -59,6 +60,8 @@ public partial class FileManager : UserControl
             _loadingBar.Minimum = 0;
             _loadingBar.Maximum = 100;
         }
+
+        TreeFiles.AddHandler(PointerWheelChangedEvent, TreeFiles_OnPointerWheelChanged, RoutingStrategies.Bubble, handledEventsToo: true);
 
         _ = LoadSavedPathsOnStartup();
     }
@@ -243,6 +246,8 @@ public partial class FileManager : UserControl
     {
         var treeItem = new TreeViewItem { IsExpanded = isExpand };
 
+        treeItem.PointerWheelChanged += OnItemWheelChanged;
+
         // Drag support — only trigger after significant pointer movement
         var itemPressed = false;
         var pressPoint = new Point();
@@ -294,8 +299,8 @@ public partial class FileManager : UserControl
 
         if (fsInfo is DirectoryInfo dir)
         {
-            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = 12 });
-            content.Children.Add(new TextBlock { Text = dir.Name, VerticalAlignment = VerticalAlignment.Center });
+            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize });
+            content.Children.Add(new TextBlock { Text = dir.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
             treeItem.Tag = dir.FullName;
             await LoadChildrenAsync(dir, treeItem, isExpand);
         }
@@ -310,11 +315,11 @@ public partial class FileManager : UserControl
             }
 
             if (AudioFormats.IsAudioFile(file.FullName))
-                content.Children.Add(new Icon { Value = "fa-solid fa-file-waveform", FontSize = 12 });
+                content.Children.Add(new Icon { Value = "fa-solid fa-file-waveform", FontSize = _treeFontSize });
             else
-                content.Children.Add(new Icon { Value = "fa-regular fa-file", FontSize = 12 });
+                content.Children.Add(new Icon { Value = "fa-regular fa-file", FontSize = _treeFontSize });
 
-            content.Children.Add(new TextBlock { Text = file.Name, VerticalAlignment = VerticalAlignment.Center });
+            content.Children.Add(new TextBlock { Text = file.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
             treeItem.Tag = file.FullName;
 
             _totalLoaded++;
@@ -448,6 +453,7 @@ public partial class FileManager : UserControl
     private TreeViewItem BuildTreeItemFromCache(TreeNodeData node)
     {
         var treeItem = new TreeViewItem { IsExpanded = false };
+        treeItem.PointerWheelChanged += OnItemWheelChanged;
 
         var content = new StackPanel
         {
@@ -458,8 +464,8 @@ public partial class FileManager : UserControl
 
         if (node.IsDirectory)
         {
-            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = 12 });
-            content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center });
+            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize });
+            content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
             treeItem.Tag = node.Path;
 
             foreach (var child in node.Children)
@@ -472,11 +478,11 @@ public partial class FileManager : UserControl
         else
         {
             if (AudioFormats.IsAudioFile(node.Path))
-                content.Children.Add(new Icon { Value = "fa-solid fa-file-waveform", FontSize = 12 });
+                content.Children.Add(new Icon { Value = "fa-solid fa-file-waveform", FontSize = _treeFontSize });
             else
-                content.Children.Add(new Icon { Value = "fa-regular fa-file", FontSize = 12 });
+                content.Children.Add(new Icon { Value = "fa-regular fa-file", FontSize = _treeFontSize });
 
-            content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center });
+            content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
             treeItem.Tag = node.Path;
         }
 
@@ -581,18 +587,60 @@ public partial class FileManager : UserControl
         Dispatcher.UIThread.Post(() =>
         {
             _tipTextBlock.Text = message;
-            _tipTextBlock.Foreground = isError ? Brushes.DarkRed : Brushes.Gray;
+            _tipTextBlock.Foreground = isError ? Brushes.Red : Brushes.White;
             _tipTextBlock.IsVisible = true;
 
             Task.Delay(3000).ContinueWith(_ =>
             {
                 Dispatcher.UIThread.Post(() =>
-                {
+                { 
                     _tipTextBlock.IsVisible = false;
                     _tipTextBlock.Text = string.Empty;
                 });
             });
         });
+    }
+
+    private void OnItemWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+
+        _treeFontSize = Math.Clamp(_treeFontSize + (e.Delta.Y > 0 ? 1 : -1), 8, 32);
+        UpdateTreeFontSizes(TreeFiles.Items);
+        ShowTip($"Font size: {_treeFontSize:F0}  (Default: {CacheService.DefaultFontSize:F0})", false);
+        e.Handled = true;
+    }
+
+    private void TreeFiles_OnPointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (!e.KeyModifiers.HasFlag(KeyModifiers.Control)) return;
+
+        _treeFontSize = Math.Clamp(_treeFontSize + (e.Delta.Y > 0 ? 1 : -1), 8, 32);
+        UpdateTreeFontSizes(TreeFiles.Items);
+        ShowTip($"Font size: {_treeFontSize:F0}  (Default: {CacheService.DefaultFontSize:F0})", false);
+        e.Handled = true;
+    }
+
+    private void UpdateTreeFontSizes(ItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            if (item is not TreeViewItem tvItem) continue;
+
+            if (tvItem.Header is StackPanel panel)
+            {
+                foreach (var child in panel.Children)
+                {
+                    if (child is Icon icon)
+                        icon.FontSize = _treeFontSize;
+                    else if (child is TextBlock tb)
+                        tb.FontSize = _treeFontSize;
+                }
+            }
+
+            if (tvItem.Items.Count > 0)
+                UpdateTreeFontSizes(tvItem.Items);
+        }
     }
 
     #endregion

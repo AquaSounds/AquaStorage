@@ -10,7 +10,7 @@ namespace AquaStorage;
 
 public partial class App : Application
 {
-    private const string ThemeConfigKey = "Config/ThemeConfig";
+    private const string SettingsConfigKey = "Config/SettingsConfig";
 
     public override void Initialize()
     {
@@ -32,7 +32,7 @@ public partial class App : Application
 
     private void LoadAccentColor()
     {
-        var config = ConfigHelper.LoadConfig<ThemeConfig>(ThemeConfigKey);
+        var config = ConfigHelper.LoadConfig<SettingsConfig>(SettingsConfigKey);
         if (config?.AccentColor is { } hex)
         {
             ApplyAccentColor(Color.Parse(hex));

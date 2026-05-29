@@ -11,7 +11,7 @@
     <Border Margin="10" CornerRadius="10">
         <Grid>
             <Border CornerRadius="10" Margin="5">
-                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
+                <Grid RowDefinitions="Auto,Auto,*,Auto"
                       ColumnDefinitions="*,Auto,Auto"
                       RowSpacing="8" ColumnSpacing="8" Margin="10">
 
@@ -41,17 +41,22 @@
                     <ProgressBar x:Name="LoadingBar" Grid.Row="1" Grid.ColumnSpan="3"
                                  Height="6" CornerRadius="3" IsVisible="False"/>
 
-                    <!-- Tip text -->
-                    <TextBlock x:Name="TipTextBlock" Grid.Row="2" Grid.ColumnSpan="3"
-                               Margin="4,0" IsVisible="False" HorizontalAlignment="Left"/>
-
-                    <!-- File tree -->
-                    <TreeView x:Name="TreeFiles" Grid.Row="3" Grid.ColumnSpan="3"
-                              Margin="0,4,0,0"
-                              SelectionChanged="TreeFiles_OnSelectionChanged"/>
+                    <!-- File tree with overlay tip -->
+                    <Panel Grid.Row="2" Grid.ColumnSpan="3">
+                        <TreeView x:Name="TreeFiles"
+                                  Margin="0,4,0,0"
+                                  SelectionChanged="TreeFiles_OnSelectionChanged"/>
+                        <Border Background="#CC000000" CornerRadius="4"
+                                Padding="8,4" Margin="8"
+                                VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                                IsVisible="{Binding #TipTextBlock.IsVisible}">
+                            <TextBlock x:Name="TipTextBlock"
+                                       IsVisible="False" HorizontalAlignment="Left"/>
+                        </Border>
+                    </Panel>
 
                     <!-- Waveform display -->
-                    <local:WaveForm Grid.Row="4" Grid.ColumnSpan="3"
+                    <local:WaveForm Grid.Row="3" Grid.ColumnSpan="3"
                                     Height="100" x:Name="WaveForm"/>
                 </Grid>
             </Border>
