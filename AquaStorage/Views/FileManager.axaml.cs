@@ -299,7 +299,8 @@ public partial class FileManager : UserControl
 
         if (fsInfo is DirectoryInfo dir)
         {
-            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize });
+            var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
+            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize, Foreground = new SolidColorBrush(accentColor) });
             content.Children.Add(new TextBlock { Text = dir.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
             treeItem.Tag = dir.FullName;
             await LoadChildrenAsync(dir, treeItem, isExpand);
@@ -506,7 +507,8 @@ public partial class FileManager : UserControl
 
         if (node.IsDirectory)
         {
-            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize });
+            var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
+            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize, Foreground = new SolidColorBrush(accentColor) });
             content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
             treeItem.Tag = node.Path;
 
