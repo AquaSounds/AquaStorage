@@ -13,6 +13,8 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AquaStorage.Helpers;
+using AquaStorage.Models;
+using AquaStorage.Services;
 using Projektanker.Icons.Avalonia;
 
 namespace AquaStorage.Views;
@@ -77,6 +79,24 @@ public partial class FileManager : UserControl
 
         try
         {
+            // Try loading from cache first
+            var cachedRoots = await Task.Run(() => CacheHelper.LoadFolderTree(AddedPaths));
+            if (cachedRoots != null)
+            {
+                foreach (var node in cachedRoots)
+                {
+                    var rootItem = BuildTreeItemFromCache(node);
+                    await Dispatcher.UIThread.InvokeAsync(() => TreeFiles.Items.Add(rootItem));
+                }
+                ShowTip($"Loaded {AddedPaths.Count} path(s) from cache", false);
+                _isLoading = false;
+                UpdateLoadingUI(false);
+                return;
+            }
+
+            // Cache miss — scan filesystem
+            var treeDataRoots = new List<TreeNodeData>();
+
             foreach (var path in AddedPaths)
             {
                 if (!Directory.Exists(path))
@@ -93,8 +113,15 @@ public partial class FileManager : UserControl
                 var rootItem = await CreateTreeItemAsync(dirInfo, false);
                 rootItem.Tag = path;
 
+                var nodeData = await Task.Run(() => BuildTreeNodeData(dirInfo));
+                treeDataRoots.Add(nodeData);
+
                 await Dispatcher.UIThread.InvokeAsync(() => TreeFiles.Items.Add(rootItem));
             }
+
+            // Save to cache
+            if (treeDataRoots.Count > 0)
+                await Task.Run(() => CacheHelper.SaveFolderTree(treeDataRoots, AddedPaths));
 
             ShowTip($"Loaded {AddedPaths.Count} path(s)", false);
         }
@@ -167,6 +194,8 @@ public partial class FileManager : UserControl
                         TreeFiles.Focus();
                         added++;
                     });
+
+                    CacheHelper.ClearAll(); // invalidate cache
                 }
                 catch (Exception ex)
                 {
@@ -198,6 +227,7 @@ public partial class FileManager : UserControl
                 AddedPaths.Remove(deletedPath);
                 SaveConfig();
                 RemoveTreeItemByPath(deletedPath);
+                CacheHelper.ClearAll(); // invalidate cache
                 ShowTip($"Removed: {deletedPath}", false);
             }
         };
@@ -377,6 +407,81 @@ public partial class FileManager : UserControl
                     TreeFiles.SelectedItem = null;
             }
         });
+    }
+
+    // ── Cache helpers ──────────────────────────────────────────────────
+
+    private static TreeNodeData BuildTreeNodeData(DirectoryInfo dir)
+    {
+        var node = new TreeNodeData
+        {
+            Name = dir.Name,
+            Path = dir.FullName,
+            IsDirectory = true
+        };
+
+        try
+        {
+            foreach (var d in dir.GetDirectories())
+            {
+                if ((d.Attributes & FileAttributes.Hidden) != 0 || (d.Attributes & FileAttributes.System) != 0)
+                    continue;
+                node.Children.Add(BuildTreeNodeData(d));
+            }
+            foreach (var f in dir.GetFiles())
+            {
+                if ((f.Attributes & FileAttributes.Hidden) != 0 || (f.Attributes & FileAttributes.System) != 0)
+                    continue;
+                node.Children.Add(new TreeNodeData
+                {
+                    Name = f.Name,
+                    Path = f.FullName,
+                    IsDirectory = false
+                });
+            }
+        }
+        catch { }
+
+        return node;
+    }
+
+    private TreeViewItem BuildTreeItemFromCache(TreeNodeData node)
+    {
+        var treeItem = new TreeViewItem { IsExpanded = false };
+
+        var content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        if (node.IsDirectory)
+        {
+            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = 12 });
+            content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center });
+            treeItem.Tag = node.Path;
+
+            foreach (var child in node.Children)
+            {
+                var childItem = BuildTreeItemFromCache(child);
+                if (childItem.Header != null)
+                    treeItem.Items.Add(childItem);
+            }
+        }
+        else
+        {
+            if (AudioFormats.IsAudioFile(node.Path))
+                content.Children.Add(new Icon { Value = "fa-solid fa-file-waveform", FontSize = 12 });
+            else
+                content.Children.Add(new Icon { Value = "fa-regular fa-file", FontSize = 12 });
+
+            content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center });
+            treeItem.Tag = node.Path;
+        }
+
+        treeItem.Header = content;
+        return treeItem;
     }
 
     #endregion

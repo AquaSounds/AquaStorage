@@ -1,4 +1,4 @@
-namespace AquaStorage.Helpers;
+namespace AquaStorage.Models;
 
 public class ThemeConfig
 {

@@ -2,8 +2,9 @@ using System;
 using System.Diagnostics;
 using System.Threading;
 using NAudio.Wave;
+using AquaStorage.Helpers;
 
-namespace AquaStorage.Helpers;
+namespace AquaStorage.Services;
 
 public sealed class AudioPlayerService : IDisposable
 {
@@ -54,7 +55,6 @@ public sealed class AudioPlayerService : IDisposable
                     double elapsed = IsPlaying ? _seekTimer.Elapsed.TotalSeconds : 0;
                     double manual = _seekTarget + elapsed;
 
-                    // Switch back to device once it catches up
                     if (_waveOut != null && IsPlaying)
                     {
                         var fmt = _waveOut.OutputWaveFormat;

@@ -1,5 +1,6 @@
 using System;
 using AquaStorage.Helpers;
+using AquaStorage.Models;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;

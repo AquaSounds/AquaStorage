@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Avalonia.Controls;
@@ -7,6 +8,8 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using AquaStorage.Helpers;
+using AquaStorage.Models;
+using AquaStorage.Services;
 
 namespace AquaStorage.Views;
 
@@ -41,11 +44,16 @@ public partial class SettingsWindow : Window
     {
         var config = ConfigHelper.LoadConfig<SettingsConfig>(ConfigPathKey);
         ConfigPathBox.Text = config?.ConfigPath ?? GetDefaultConfigPath();
+        MaxCacheBox.Text = CacheService.MaxCacheBytes is > 0
+            ? CacheService.FormatBytes(CacheService.MaxCacheBytes.Value)
+            : string.Empty;
     }
 
     private void SaveConfigPath(string path)
     {
-        ConfigHelper.SaveConfig(ConfigPathKey, new SettingsConfig { ConfigPath = path });
+        var config = ConfigHelper.LoadConfig<SettingsConfig>(ConfigPathKey) ?? new SettingsConfig();
+        config.ConfigPath = path;
+        ConfigHelper.SaveConfig(ConfigPathKey, config);
         OnConfigPathChanged?.Invoke(path);
     }
 
@@ -98,11 +106,18 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void ConfigPathBox_LostFocus(object? sender, RoutedEventArgs e)
+    private void OpenFolderBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        OpenConfigFolder();
+    }
+
+    private void OpenConfigFolder()
     {
         var path = ConfigPathBox.Text?.Trim();
-        if (!string.IsNullOrEmpty(path))
-            SaveConfigPath(path);
+        if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+        {
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
     }
 
     private void ThemeColorBtn_Click(object? sender, RoutedEventArgs e)
@@ -117,6 +132,22 @@ public partial class SettingsWindow : Window
             });
         };
         recolorWin.ShowDialog(this);
+    }
+
+    private void ClearCacheBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        CacheService.ClearAll();
+    }
+
+    private void MaxCacheBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(MaxCacheBox.Text))
+            CacheService.SetMaxCache(null);
+        else
+        {
+            var bytes = CacheService.ParseSize(MaxCacheBox.Text);
+            if (bytes is > 0) CacheService.SetMaxCache(bytes);
+        }
     }
 
     private void OnTopBarPointerPressed(object? sender, PointerPressedEventArgs e)
@@ -138,9 +169,4 @@ public partial class SettingsWindow : Window
     private void OnMaximize(object? sender, RoutedEventArgs e) =>
         WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     private void OnClose(object? sender, RoutedEventArgs e) => Close();
-}
-
-public class SettingsConfig
-{
-    public string? ConfigPath { get; set; }
 }

@@ -3,6 +3,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
 using AquaStorage.Helpers;
+using AquaStorage.Models;
+using AquaStorage.Services;
 
 namespace AquaStorage;
 
@@ -17,6 +19,7 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        CacheService.Initialize();
         LoadAccentColor();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using AquaStorage.Helpers;
+using AquaStorage.Services;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
@@ -55,11 +56,32 @@ public partial class WaveForm : UserControl
     {
         try
         {
+            // Try loading from cache first
+            var cached = await Task.Run(() => CacheHelper.LoadWaveform(filePath));
+            if (cached is { } data)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    _leftChannel = data.left;
+                    _rightChannel = data.right;
+                    _playbackPosition = 0;
+                    InvalidateGeometry();
+                    InvalidateVisual();
+                    if (_player != null) StartPositionTimer();
+                });
+                return;
+            }
+
+            // Cache miss — render and save
             await Task.Run(async () =>
             {
                 using var reader = AudioFormats.CreateReader(filePath);
                 await LoadProgressive(reader);
             });
+
+            // Save waveform to cache after rendering
+            if (_leftChannel != null && _rightChannel != null)
+                await Task.Run(() => CacheHelper.SaveWaveform(filePath, _leftChannel, _rightChannel));
         }
         catch
         {

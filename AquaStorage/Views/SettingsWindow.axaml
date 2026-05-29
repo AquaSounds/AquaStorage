@@ -33,16 +33,22 @@
 
         <!-- Content -->
         <DockPanel Margin="10" LastChildFill="True">
-            <!-- Config folder path -->
+            <!-- App Data folder path -->
             <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,10">
-                <TextBlock Text="Config Folder" Opacity="0.6" FontSize="12"/>
-                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                <TextBlock Text="App Data" Opacity="0.6" FontSize="12"/>
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
                     <TextBox x:Name="ConfigPathBox" Grid.Column="0"
-                             Watermark="Config folder path"
-                             LostFocus="ConfigPathBox_LostFocus"/>
-                    <Button x:Name="BrowseConfigBtn" Grid.Column="1" Width="40"
-                            Click="BrowseConfigBtn_Click">
+                             Watermark="App data folder path"
+                             IsReadOnly="True"/>
+                    <Button x:Name="OpenFolderBtn" Grid.Column="1" Width="40"
+                            Click="OpenFolderBtn_Click"
+                            ToolTip.Tip="Open folder">
                         <i:Icon Value="mdi-folder-open"/>
+                    </Button>
+                    <Button x:Name="BrowseConfigBtn" Grid.Column="2" Width="40"
+                            Click="BrowseConfigBtn_Click"
+                            ToolTip.Tip="Set folder location">
+                        <i:Icon Value="mdi-cog"/>
                     </Button>
                 </Grid>
             </StackPanel>
@@ -55,6 +61,16 @@
             <!-- Bottom buttons -->
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
                         HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                    <TextBlock Text="Max Cache" Opacity="0.6" FontSize="12"
+                               VerticalAlignment="Center"/>
+                    <TextBox x:Name="MaxCacheBox" Width="80" Watermark="500MB"
+                             TextChanged="MaxCacheBox_TextChanged"/>
+                </StackPanel>
+                <Button x:Name="ClearCacheBtn" Click="ClearCacheBtn_Click"
+                        ToolTip.Tip="Clear Cache">
+                    <i:Icon Value="fa-solid fa-broom"/>
+                </Button>
                 <Button x:Name="ThemeColorBtn" Click="ThemeColorBtn_Click">
                     <i:Icon Value="mdi-palette"/>
                 </Button>
