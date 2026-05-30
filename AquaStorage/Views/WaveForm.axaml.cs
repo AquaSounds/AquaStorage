@@ -440,18 +440,27 @@ public partial class WaveForm : UserControl
             var linePen = new Pen(new SolidColorBrush(lineColor, opacity), _isDragging ? 2.0 : 1.5);
             context.DrawLine(linePen, new Point(x, 0), new Point(x, h));
 
-            // Time display
-            _timeTypeface ??= new Typeface("Segoe UI");
-            double currentTime = _player.CurrentTime;
-            double totalTime = _player.TotalTime;
-            string timeText = $"{FormatTime(currentTime)} / {FormatTime(totalTime)}";
-            var timeBrush = new SolidColorBrush(lineColor, 0.7);
-            var timeTextObj = new FormattedText(timeText,
-                System.Globalization.CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                _timeTypeface.Value, 12, timeBrush);
-            var textPos = new Point(w - timeTextObj.Width - 6, h - timeTextObj.Height - 2);
-            context.DrawText(timeTextObj, textPos);
+            // Time display (hover only)
+            if (_isHoveringNear || _isDragging)
+            {
+                _timeTypeface ??= new Typeface("Segoe UI");
+                double currentTime = _player.CurrentTime;
+                double totalTime = _player.TotalTime;
+                string timeText = $"{FormatTime(currentTime)} / {FormatTime(totalTime)}";
+                var timeBrush = new SolidColorBrush(lineColor, 0.9);
+                var timeTextObj = new FormattedText(timeText,
+                    System.Globalization.CultureInfo.CurrentCulture,
+                    FlowDirection.LeftToRight,
+                    _timeTypeface.Value, 12, timeBrush);
+                double pad = 4;
+                double bgW = timeTextObj.Width + pad * 2;
+                double bgH = timeTextObj.Height + pad * 2;
+                double bgX = w - bgW - 4;
+                double bgY = h - bgH - 2;
+                context.DrawRectangle(new SolidColorBrush(Colors.Black, 0.6), null,
+                    new RoundedRect(new Rect(bgX, bgY, bgW, bgH), 4));
+                context.DrawText(timeTextObj, new Point(bgX + pad, bgY + pad));
+            }
         }
     }
 
