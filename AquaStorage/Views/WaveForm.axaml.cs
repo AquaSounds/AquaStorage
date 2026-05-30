@@ -536,7 +536,7 @@ public partial class WaveForm : UserControl
         {
             double fraction = Math.Clamp(e.GetPosition(this).X / w, 0, 1);
             _playbackPosition = fraction;
-            _player?.Seek(fraction);
+            _player?.Seek(fraction, forcePlay: true);
         }
         InvalidateVisual();
     }

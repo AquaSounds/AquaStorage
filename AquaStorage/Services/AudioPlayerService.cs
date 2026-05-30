@@ -88,7 +88,7 @@ public sealed class AudioPlayerService : IDisposable
         }
     }
 
-    public void Seek(double fraction)
+    public void Seek(double fraction, bool forcePlay = false)
     {
         lock (_lock)
         {
@@ -100,7 +100,7 @@ public sealed class AudioPlayerService : IDisposable
             _seekTarget = target;
             _seekPending = true;
             _seekTimer.Restart();
-            if (wasPlaying) _waveOut.Play();
+            if (wasPlaying || forcePlay) _waveOut.Play();
         }
     }
 
