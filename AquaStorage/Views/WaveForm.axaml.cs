@@ -8,6 +8,7 @@ using AquaStorage.Services;
 using NAudio.Wave;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 
 namespace AquaStorage.Views;
@@ -29,6 +30,7 @@ public partial class WaveForm : UserControl
     private Pen? _waveformPen;
     private double _cachedW = -1;
     private double _cachedH = -1;
+    private Typeface? _timeTypeface;
 
     private const double LineHitZone = 20.0;
 
@@ -437,6 +439,19 @@ public partial class WaveForm : UserControl
             var lineColor = isLight ? Colors.Black : Colors.White;
             var linePen = new Pen(new SolidColorBrush(lineColor, opacity), _isDragging ? 2.0 : 1.5);
             context.DrawLine(linePen, new Point(x, 0), new Point(x, h));
+
+            // Time display
+            _timeTypeface ??= new Typeface("Segoe UI");
+            double currentTime = _player.CurrentTime;
+            double totalTime = _player.TotalTime;
+            string timeText = $"{FormatTime(currentTime)} / {FormatTime(totalTime)}";
+            var timeBrush = new SolidColorBrush(lineColor, 0.7);
+            var timeTextObj = new FormattedText(timeText,
+                System.Globalization.CultureInfo.CurrentCulture,
+                FlowDirection.LeftToRight,
+                _timeTypeface.Value, 12, timeBrush);
+            var textPos = new Point(w - timeTextObj.Width - 6, h - timeTextObj.Height - 2);
+            context.DrawText(timeTextObj, textPos);
         }
     }
 
@@ -450,6 +465,14 @@ public partial class WaveForm : UserControl
                 ctx.LineTo(new Point(i * stepX, midY - data[i] * ampScale));
         }
         return geometry;
+    }
+
+    private static string FormatTime(double seconds)
+    {
+        var ts = TimeSpan.FromSeconds(Math.Max(0, seconds));
+        return ts.TotalHours >= 1
+            ? ts.ToString(@"h\:mm\:ss")
+            : ts.ToString(@"m\:ss");
     }
 
     // ── Position timer & seeking ─────────────────────────────────────
