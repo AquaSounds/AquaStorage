@@ -17,6 +17,7 @@ public partial class App : Application
     private const string SettingsConfigKey = "Config/SettingsConfig";
     public static event Action<Color>? AccentColorChanged;
     public static event Action? ThemeChanged;
+    public static event Action<string?>? BackgroundImageChanged;
 
     public override void Initialize()
     {
@@ -57,8 +58,14 @@ public partial class App : Application
 
         if (config?.AccentColor is { } hex)
             ApplyAccentColor(Color.Parse(hex));
-        if (config?.IsLightTheme == true)
-            ApplyTheme(true);
+
+        // Migrate old config
+        string mode = config?.ThemeMode ?? "System";
+        if (config?.IsLightTheme == true && string.IsNullOrEmpty(config?.ThemeMode))
+            mode = "Light";
+
+        ApplyTheme(mode);
+        BackgroundImageChanged?.Invoke(config?.BackgroundImageCache);
     }
 
     public static void ApplyAccentColor(Color color)
@@ -68,14 +75,56 @@ public partial class App : Application
         AccentColorChanged?.Invoke(color);
     }
 
-    public static void ApplyTheme(bool isLight)
+    public static void ApplyTheme(string mode)
     {
-        if (Current != null)
+        if (Current == null) return;
+
+        ThemeVariant variant = mode switch
         {
-            Current.RequestedThemeVariant = isLight ? ThemeVariant.Light : ThemeVariant.Dark;
-            Current.Resources["WindowBackgroundBrush"] = new SolidColorBrush(
-                isLight ? Color.Parse("#F3F3F3") : Color.Parse("#2B2B2B"));
-        }
+            "Light" => ThemeVariant.Light,
+            "Dark" => ThemeVariant.Dark,
+            _ => ThemeVariant.Default
+        };
+
+        // Must set variant FIRST so GetSystemBackgroundColor reads the resolved theme
+        Current.RequestedThemeVariant = variant;
+
+        Color bgColor = mode switch
+        {
+            "Light" => Color.Parse("#F3F3F3"),
+            "Dark" => Color.Parse("#2B2B2B"),
+            _ => GetSystemBackgroundColor()
+        };
+
+        Current.Resources["WindowBackgroundBrush"] = new SolidColorBrush(bgColor);
+
+        Current.ActualThemeVariantChanged -= OnActualThemeVariantChanged;
+        if (mode == "System")
+            Current.ActualThemeVariantChanged += OnActualThemeVariantChanged;
+
         ThemeChanged?.Invoke();
     }
+
+    private static void OnActualThemeVariantChanged(object? sender, EventArgs e)
+    {
+        if (Current == null) return;
+        Current.Resources["WindowBackgroundBrush"] = new SolidColorBrush(GetSystemBackgroundColor());
+        ThemeChanged?.Invoke();
+    }
+
+    private static Color GetSystemBackgroundColor()
+    {
+        return Current?.ActualThemeVariant == ThemeVariant.Light
+            ? Color.Parse("#F3F3F3")
+            : Color.Parse("#2B2B2B");
+    }
+
+    public static void NotifyBackgroundImageChanged(string? cacheName) =>
+        BackgroundImageChanged?.Invoke(cacheName);
+
+    public static SettingsConfig? GetSettings() =>
+        ConfigHelper.LoadConfig<SettingsConfig>(SettingsConfigKey);
+
+    public static void SaveSettings(SettingsConfig config) =>
+        ConfigHelper.SaveConfig(SettingsConfigKey, config);
 }

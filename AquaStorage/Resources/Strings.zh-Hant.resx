@@ -143,8 +143,50 @@
   <data name="TabAppearance" xml:space="preserve">
     <value>外觀</value>
   </data>
-  <data name="LightTheme" xml:space="preserve">
-    <value>淺色主題</value>
+  <data name="Theme" xml:space="preserve">
+    <value>主題模式</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>深色</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>淺色</value>
+  </data>
+  <data name="ThemeSystem" xml:space="preserve">
+    <value>跟隨系統</value>
+  </data>
+  <data name="BackgroundImage" xml:space="preserve">
+    <value>背景圖片</value>
+  </data>
+  <data name="SelectImage" xml:space="preserve">
+    <value>選擇圖片</value>
+  </data>
+  <data name="FillMode" xml:space="preserve">
+    <value>填充方式</value>
+  </data>
+  <data name="FillStretch" xml:space="preserve">
+    <value>拉伸</value>
+  </data>
+  <data name="FillUniformToFill" xml:space="preserve">
+    <value>裁剪</value>
+  </data>
+  <data name="FillUniform" xml:space="preserve">
+    <value>適應</value>
+  </data>
+  <data name="FillTile" xml:space="preserve">
+    <value>平鋪</value>
+  </data>
+  <data name="BackgroundMask" xml:space="preserve">
+    <value>遮罩</value>
+  </data>
+  <data name="BackgroundBlur" xml:space="preserve">
+    <value>模糊</value>
+  </data>
+  <data name="ControlTheme" xml:space="preserve">
+    <value>控件主題</value>
+  </data>
+  <data name="RemoveBackground" xml:space="preserve">
+    <value>移除背景</value>
   </data>
   <data name="FontSize" xml:space="preserve">
     <value>字型大小</value>

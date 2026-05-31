@@ -11,29 +11,36 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="0"
         Background="{DynamicResource WindowBackgroundBrush}">
-    <DockPanel>
-        <!-- Top bar: drag + window controls -->
-        <Border DockPanel.Dock="Top" Height="32" Background="Transparent"
-                PointerPressed="OnTopBarPointerPressed">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Grid.Column="0" Text="{x:Static h:Localizer.AppTitle}" VerticalAlignment="Center"
-                           Margin="12,0,0,0" Opacity="0.6" FontSize="13"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
-                            Margin="0,0,4,0">
-                    <Button Classes="window-btn" Click="OnMinimize">
-                        <i:Icon Value="mdi-window-minimize" FontSize="14"/>
-                    </Button>
-                    <Button Classes="window-btn" Click="OnMaximize">
-                        <i:Icon Value="mdi-window-maximize" FontSize="14"/>
-                    </Button>
-                    <Button Classes="window-btn close-btn" Click="OnClose">
-                        <i:Icon Value="mdi-window-close" FontSize="14"/>
-                    </Button>
-                </StackPanel>
-            </Grid>
-        </Border>
-        <local:FileManager/>
-    </DockPanel>
+    <Grid>
+        <!-- Background image layer -->
+        <Image x:Name="BgImage" Stretch="UniformToFill" IsVisible="False"/>
+        <!-- Mask overlay -->
+        <Rectangle x:Name="BgMask" Fill="Black" Opacity="0" IsHitTestVisible="False"/>
+        <!-- Main content -->
+        <DockPanel>
+            <!-- Top bar: drag + window controls -->
+            <Border DockPanel.Dock="Top" Height="32" Background="Transparent"
+                    PointerPressed="OnTopBarPointerPressed">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Grid.Column="0" Text="{x:Static h:Localizer.AppTitle}" VerticalAlignment="Center"
+                               Margin="12,0,0,0" Opacity="0.6" FontSize="13"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                                Margin="0,0,4,0">
+                        <Button Classes="window-btn" Click="OnMinimize">
+                            <i:Icon Value="mdi-window-minimize" FontSize="14"/>
+                        </Button>
+                        <Button Classes="window-btn" Click="OnMaximize">
+                            <i:Icon Value="mdi-window-maximize" FontSize="14"/>
+                        </Button>
+                        <Button Classes="window-btn close-btn" Click="OnClose">
+                            <i:Icon Value="mdi-window-close" FontSize="14"/>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <local:FileManager/>
+        </DockPanel>
+    </Grid>
     <Window.Styles>
         <Style Selector="Button.window-btn">
             <Setter Property="Background" Value="Transparent"/>

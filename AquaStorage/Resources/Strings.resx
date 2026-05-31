@@ -143,8 +143,50 @@
   <data name="TabAppearance" xml:space="preserve">
     <value>Appearance</value>
   </data>
-  <data name="LightTheme" xml:space="preserve">
-    <value>Light Theme</value>
+  <data name="Theme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="ThemeSystem" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="BackgroundImage" xml:space="preserve">
+    <value>Background Image</value>
+  </data>
+  <data name="SelectImage" xml:space="preserve">
+    <value>Select Image</value>
+  </data>
+  <data name="FillMode" xml:space="preserve">
+    <value>Fill Mode</value>
+  </data>
+  <data name="FillStretch" xml:space="preserve">
+    <value>Stretch</value>
+  </data>
+  <data name="FillUniformToFill" xml:space="preserve">
+    <value>Crop</value>
+  </data>
+  <data name="FillUniform" xml:space="preserve">
+    <value>Fit</value>
+  </data>
+  <data name="FillTile" xml:space="preserve">
+    <value>Tile</value>
+  </data>
+  <data name="BackgroundMask" xml:space="preserve">
+    <value>Mask</value>
+  </data>
+  <data name="BackgroundBlur" xml:space="preserve">
+    <value>Blur</value>
+  </data>
+  <data name="ControlTheme" xml:space="preserve">
+    <value>Control Theme</value>
+  </data>
+  <data name="RemoveBackground" xml:space="preserve">
+    <value>Remove Background</value>
   </data>
   <data name="FontSize" xml:space="preserve">
     <value>Font Size</value>

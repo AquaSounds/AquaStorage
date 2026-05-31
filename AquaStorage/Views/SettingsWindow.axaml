@@ -3,7 +3,7 @@
         xmlns:i="https://github.com/projektanker/icons.avalonia"
         xmlns:h="clr-namespace:AquaStorage.Helpers"
         x:Class="AquaStorage.Views.SettingsWindow"
-        Title="{x:Static h:Localizer.Settings}" Width="600" Height="480"
+        Title="{x:Static h:Localizer.Settings}" Width="600" Height="640"
         WindowStartupLocation="CenterOwner"
         TransparencyLevelHint="Mica"
         ExtendClientAreaToDecorationsHint="True"
@@ -86,33 +86,83 @@
 
             <!-- Appearance tab -->
             <TabItem Header="{x:Static h:Localizer.TabAppearance}">
-                <StackPanel Spacing="12" Margin="0,12,0,0">
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Static h:Localizer.LightTheme}" Opacity="0.6" FontSize="12"
-                                   VerticalAlignment="Center" Width="100"/>
-                        <ToggleSwitch x:Name="ThemeToggle"/>
+                <ScrollViewer>
+                    <StackPanel Spacing="10" Margin="0,10,0,10">
+                        <!-- Theme mode -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static h:Localizer.Theme}" Opacity="0.6" FontSize="12"
+                                       VerticalAlignment="Center" Width="100"/>
+                            <ComboBox x:Name="ThemeCombo" Width="160"
+                                      SelectionChanged="ThemeCombo_SelectionChanged"/>
+                        </StackPanel>
+                        <!-- Accent color -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static h:Localizer.ThemeColor}" Opacity="0.6" FontSize="12"
+                                       VerticalAlignment="Center" Width="100"/>
+                            <Button x:Name="ThemeColorBtn" Click="ThemeColorBtn_Click"
+                                    ToolTip.Tip="{x:Static h:Localizer.ThemeColor}">
+                                <i:Icon Value="mdi-palette"/>
+                            </Button>
+                        </StackPanel>
+                        <!-- Font size -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static h:Localizer.FontSize}" Opacity="0.6" FontSize="12"
+                                       VerticalAlignment="Center" Width="100"/>
+                            <TextBox x:Name="DefaultFontSizeBox" Width="80" Watermark="12"
+                                     TextChanged="DefaultFontSizeBox_TextChanged"/>
+                        </StackPanel>
+                        <!-- Language -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static h:Localizer.Language}" Opacity="0.6" FontSize="12"
+                                       VerticalAlignment="Center" Width="100"/>
+                            <ComboBox x:Name="LanguageCombo" Width="160"
+                                      SelectionChanged="LanguageCombo_SelectionChanged"/>
+                        </StackPanel>
+
+                        <!-- Background Image section -->
+                        <Separator Margin="0,6"/>
+                        <TextBlock Text="{x:Static h:Localizer.BackgroundImage}" FontSize="13"
+                                   FontWeight="SemiBold" Margin="0,0,0,2"/>
+
+                        <!-- Select image -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static h:Localizer.SelectImage}" Opacity="0.6" FontSize="12"
+                                       VerticalAlignment="Center" Width="100"/>
+                            <Button x:Name="SelectImageBtn" Click="SelectImageBtn_Click">
+                                <i:Icon Value="mdi-image"/>
+                            </Button>
+                            <Button x:Name="RemoveImageBtn" Click="RemoveImageBtn_Click"
+                                    ToolTip.Tip="{x:Static h:Localizer.RemoveBackground}">
+                                <i:Icon Value="mdi-delete"/>
+                            </Button>
+                        </StackPanel>
+                        <!-- Fill mode -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static h:Localizer.FillMode}" Opacity="0.6" FontSize="12"
+                                       VerticalAlignment="Center" Width="100"/>
+                            <ComboBox x:Name="FillModeCombo" Width="160"
+                                      SelectionChanged="FillModeCombo_SelectionChanged"/>
+                        </StackPanel>
+                        <!-- Mask -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static h:Localizer.BackgroundMask}" Opacity="0.6" FontSize="12"
+                                       VerticalAlignment="Center" Width="100"/>
+                            <Slider x:Name="MaskSlider" Width="200" Minimum="0" Maximum="1"
+                                    ValueChanged="MaskSlider_ValueChanged"/>
+                            <TextBlock x:Name="MaskLabel" Text="50%" Opacity="0.5" FontSize="12"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <!-- Blur -->
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="{x:Static h:Localizer.BackgroundBlur}" Opacity="0.6" FontSize="12"
+                                       VerticalAlignment="Center" Width="100"/>
+                            <Slider x:Name="BlurSlider" Width="200" Minimum="0" Maximum="1"
+                                    ValueChanged="BlurSlider_ValueChanged"/>
+                            <TextBlock x:Name="BlurLabel" Text="0%" Opacity="0.5" FontSize="12"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Static h:Localizer.ThemeColor}" Opacity="0.6" FontSize="12"
-                                   VerticalAlignment="Center" Width="100"/>
-                        <Button x:Name="ThemeColorBtn" Click="ThemeColorBtn_Click"
-                                ToolTip.Tip="{x:Static h:Localizer.ThemeColor}">
-                            <i:Icon Value="mdi-palette"/>
-                        </Button>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Static h:Localizer.FontSize}" Opacity="0.6" FontSize="12"
-                                   VerticalAlignment="Center" Width="100"/>
-                        <TextBox x:Name="DefaultFontSizeBox" Width="80" Watermark="12"
-                                 TextChanged="DefaultFontSizeBox_TextChanged"/>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                        <TextBlock Text="{x:Static h:Localizer.Language}" Opacity="0.6" FontSize="12"
-                                   VerticalAlignment="Center" Width="100"/>
-                        <ComboBox x:Name="LanguageCombo" Width="160"
-                                  SelectionChanged="LanguageCombo_SelectionChanged"/>
-                    </StackPanel>
-                </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <!-- Storage tab -->

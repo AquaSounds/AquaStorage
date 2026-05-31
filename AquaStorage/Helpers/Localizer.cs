@@ -48,7 +48,21 @@ public sealed class Localizer : INotifyPropertyChanged
     public static string SelectConfigFolder => Instance["SelectConfigFolder"];
 
     public static string TabAppearance => Instance["TabAppearance"];
-    public static string LightTheme => Instance["LightTheme"];
+    public static string Theme => Instance["Theme"];
+    public static string ThemeDark => Instance["ThemeDark"];
+    public static string ThemeLight => Instance["ThemeLight"];
+    public static string ThemeSystem => Instance["ThemeSystem"];
+    public static string BackgroundImage => Instance["BackgroundImage"];
+    public static string SelectImage => Instance["SelectImage"];
+    public static string FillMode => Instance["FillMode"];
+    public static string FillStretch => Instance["FillStretch"];
+    public static string FillUniformToFill => Instance["FillUniformToFill"];
+    public static string FillUniform => Instance["FillUniform"];
+    public static string FillTile => Instance["FillTile"];
+    public static string BackgroundMask => Instance["BackgroundMask"];
+    public static string BackgroundBlur => Instance["BackgroundBlur"];
+    public static string ControlTheme => Instance["ControlTheme"];
+    public static string RemoveBackground => Instance["RemoveBackground"];
     public static string FontSize => Instance["FontSize"];
     public static string Language => Instance["Language"];
     public static string RestartRequired => Instance["RestartRequired"];

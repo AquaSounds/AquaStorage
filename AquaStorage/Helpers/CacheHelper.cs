@@ -24,6 +24,7 @@ public static class CacheHelper
     }
 
     private static string GetWaveformsDir() => Path.Combine(GetCacheDir(), "Waveforms");
+    private static string GetBackgroundsDir() => Path.Combine(GetCacheDir(), "Backgrounds");
 
     private static void EnsureDir(string dir)
     {
@@ -126,6 +127,42 @@ public static class CacheHelper
         {
             return null;
         }
+    }
+
+    // ── Background Image ───────────────────────────────────────────────
+
+    public static string? SaveBackgroundImage(string sourcePath)
+    {
+        try
+        {
+            var dir = GetBackgroundsDir();
+            EnsureDir(dir);
+            string ext = Path.GetExtension(sourcePath);
+            string name = $"{Guid.NewGuid():N}{ext}";
+            string dest = Path.Combine(dir, name);
+            File.Copy(sourcePath, dest, overwrite: true);
+            return name;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public static string? ResolveBackgroundImage(string? originalPath, string? cacheName)
+    {
+        // 1. Try cache first
+        if (!string.IsNullOrEmpty(cacheName))
+        {
+            string cachePath = Path.Combine(GetBackgroundsDir(), cacheName);
+            if (File.Exists(cachePath))
+                return cachePath;
+        }
+        // 2. Fall back to original path
+        if (!string.IsNullOrEmpty(originalPath) && File.Exists(originalPath))
+            return originalPath;
+        // 3. Nothing works
+        return null;
     }
 
     // ── Clear ──────────────────────────────────────────────────────────

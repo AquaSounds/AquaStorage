@@ -143,8 +143,50 @@
   <data name="TabAppearance" xml:space="preserve">
     <value>外観</value>
   </data>
-  <data name="LightTheme" xml:space="preserve">
-    <value>ライトテーマ</value>
+  <data name="Theme" xml:space="preserve">
+    <value>テーマ</value>
+  </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>ダーク</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>ライト</value>
+  </data>
+  <data name="ThemeSystem" xml:space="preserve">
+    <value>システム</value>
+  </data>
+  <data name="BackgroundImage" xml:space="preserve">
+    <value>背景画像</value>
+  </data>
+  <data name="SelectImage" xml:space="preserve">
+    <value>画像を選択</value>
+  </data>
+  <data name="FillMode" xml:space="preserve">
+    <value>表示モード</value>
+  </data>
+  <data name="FillStretch" xml:space="preserve">
+    <value>引き伸ばし</value>
+  </data>
+  <data name="FillUniformToFill" xml:space="preserve">
+    <value>切り抜き</value>
+  </data>
+  <data name="FillUniform" xml:space="preserve">
+    <value>サイズ調整</value>
+  </data>
+  <data name="FillTile" xml:space="preserve">
+    <value>タイル</value>
+  </data>
+  <data name="BackgroundMask" xml:space="preserve">
+    <value>マスク</value>
+  </data>
+  <data name="BackgroundBlur" xml:space="preserve">
+    <value>ぼかし</value>
+  </data>
+  <data name="ControlTheme" xml:space="preserve">
+    <value>コントロールテーマ</value>
+  </data>
+  <data name="RemoveBackground" xml:space="preserve">
+    <value>背景を削除</value>
   </data>
   <data name="FontSize" xml:space="preserve">
     <value>フォントサイズ</value>
