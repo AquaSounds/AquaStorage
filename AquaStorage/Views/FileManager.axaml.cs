@@ -51,6 +51,7 @@ public partial class FileManager : UserControl
     private HashSet<string> _favoritePaths = new();
     private HashSet<string> _preSearchExpanded = new();
     private bool _searchWasActive;
+    private CancellationTokenSource? _searchDebounce;
 
     public FileManager()
     {
@@ -690,7 +691,7 @@ public partial class FileManager : UserControl
 
     #region Search & Favorites Filter
 
-    private void SearchBox_TextChanged(object? sender, TextChangedEventArgs e)
+    private async void SearchBox_TextChanged(object? sender, TextChangedEventArgs e)
     {
         var newText = SearchBox?.Text?.Trim() ?? "";
         bool wasEmpty = string.IsNullOrEmpty(_searchText);
@@ -703,12 +704,98 @@ public partial class FileManager : UserControl
             _searchWasActive = true;
         }
 
-        ApplyTreeFilter();
-
-        if (string.IsNullOrEmpty(_searchText) && _searchWasActive)
+        _searchDebounce?.Cancel();
+        _searchDebounce = new CancellationTokenSource();
+        var token = _searchDebounce.Token;
+        try
         {
-            RestoreExpandedState(TreeFiles.Items);
-            _searchWasActive = false;
+            await Task.Delay(200, token);
+            if (token.IsCancellationRequested) return;
+
+            if (!string.IsNullOrEmpty(_searchText))
+                await ApplySearchFilterAsync(token);
+            else
+                await Dispatcher.UIThread.InvokeAsync(() => ApplyTreeFilter());
+
+            if (string.IsNullOrEmpty(_searchText) && _searchWasActive)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    RestoreExpandedState(TreeFiles.Items);
+                    _searchWasActive = false;
+                });
+            }
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private async Task ApplySearchFilterAsync(CancellationToken token)
+    {
+        // Collect tree snapshot on UI thread
+        var flat = new List<(TreeViewItem item, string path, string name, string? parentPath)>();
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            CollectFlatItems(TreeFiles.Items, null, flat);
+        });
+
+        // Compute visibility on background thread
+        var search = _searchText;
+        var showFavOnly = _showFavoritesOnly;
+        var favPaths = _favoritePaths;
+        var (visible, expand) = await Task.Run(() =>
+        {
+            var vis = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var exp = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var pathToParent = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (_, path, _, parentPath) in flat)
+                pathToParent[path] = parentPath;
+
+            foreach (var (_, path, name, _) in flat)
+            {
+                if (token.IsCancellationRequested) break;
+                bool match = name.Contains(search, StringComparison.OrdinalIgnoreCase);
+                bool isFav = favPaths.Contains(path);
+
+                bool shouldShow = showFavOnly ? (match && isFav) : match;
+                if (shouldShow)
+                {
+                    vis.Add(path);
+                    // Mark ancestors visible + expand them
+                    var p = pathToParent.GetValueOrDefault(path);
+                    while (p != null)
+                    {
+                        vis.Add(p);
+                        exp.Add(p);
+                        p = pathToParent.GetValueOrDefault(p);
+                    }
+                }
+            }
+            return (vis, exp);
+        }, token);
+
+        if (token.IsCancellationRequested) return;
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            foreach (var (item, path, _, _) in flat)
+            {
+                item.IsVisible = visible.Contains(path);
+                if (expand.Contains(path))
+                    item.IsExpanded = true;
+            }
+        });
+    }
+
+    private void CollectFlatItems(ItemCollection items, string? parentPath, List<(TreeViewItem, string, string, string?)> result)
+    {
+        foreach (var item in items)
+        {
+            if (item is not TreeViewItem tvItem) continue;
+            var path = GetFullPath(tvItem);
+            if (string.IsNullOrEmpty(path)) continue;
+            var name = System.IO.Path.GetFileName(path);
+            result.Add((tvItem, path, name, parentPath));
+            CollectFlatItems(tvItem.Items, path, result);
         }
     }
 
