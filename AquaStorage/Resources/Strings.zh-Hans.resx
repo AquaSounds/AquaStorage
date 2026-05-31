@@ -217,4 +217,7 @@
   <data name="ClearCache" xml:space="preserve">
     <value>清除缓存</value>
   </data>
+  <data name="CacheCleared" xml:space="preserve">
+    <value>缓存已清理</value>
+  </data>
 </root>

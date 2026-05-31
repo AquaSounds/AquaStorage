@@ -217,4 +217,7 @@
   <data name="ClearCache" xml:space="preserve">
     <value>清除快取</value>
   </data>
+  <data name="CacheCleared" xml:space="preserve">
+    <value>快取已清理</value>
+  </data>
 </root>

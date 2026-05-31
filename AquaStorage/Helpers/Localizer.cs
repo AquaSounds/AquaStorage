@@ -73,6 +73,7 @@ public sealed class Localizer : INotifyPropertyChanged
     public static string MaxCache => Instance["MaxCache"];
     public static string WatermarkCacheSize => Instance["WatermarkCacheSize"];
     public static string ClearCache => Instance["ClearCache"];
+    public static string CacheCleared => Instance["CacheCleared"];
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

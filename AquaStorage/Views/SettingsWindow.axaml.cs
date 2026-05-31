@@ -4,11 +4,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using AquaStorage.Helpers;
 using AquaStorage.Models;
 using AquaStorage.Services;
@@ -323,6 +325,19 @@ public partial class SettingsWindow : Window
     private void ClearCacheBtn_Click(object? sender, RoutedEventArgs e)
     {
         CacheService.ClearAll();
+        ShowCacheClearedHint();
+    }
+
+    private void ShowCacheClearedHint()
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            CacheClearedHint.IsVisible = true;
+            Task.Delay(2000).ContinueWith(_ =>
+            {
+                Dispatcher.UIThread.Post(() => CacheClearedHint.IsVisible = false);
+            });
+        });
     }
 
     private void MaxCacheBox_TextChanged(object? sender, TextChangedEventArgs e)

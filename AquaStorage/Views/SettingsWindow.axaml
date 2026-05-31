@@ -10,6 +10,7 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="0"
         Background="{DynamicResource WindowBackgroundBrush}">
+    <Grid>
     <DockPanel>
         <!-- Top bar -->
         <Border DockPanel.Dock="Top" Height="32" Background="Transparent"
@@ -187,7 +188,19 @@
 
         </TabControl>
     </DockPanel>
-    <Window.Styles>
+
+    <!-- Toast overlay: centered card -->
+    <Border x:Name="CacheClearedHint"
+            Background="#99000000" CornerRadius="4"
+            Padding="16,8"
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            IsVisible="False">
+        <TextBlock Text="{x:Static h:Localizer.CacheCleared}"
+                   Foreground="White" FontSize="14"
+                   HorizontalAlignment="Center"/>
+    </Border>
+</Grid>
+<Window.Styles>
         <Style Selector="Button.window-btn">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
