@@ -188,6 +188,21 @@
   <data name="RemoveBackground" xml:space="preserve">
     <value>移除背景</value>
   </data>
+  <data name="Search" xml:space="preserve">
+    <value>搜尋檔案...</value>
+  </data>
+  <data name="AllFiles" xml:space="preserve">
+    <value>全部</value>
+  </data>
+  <data name="Favorites" xml:space="preserve">
+    <value>收藏</value>
+  </data>
+  <data name="AddToFavorites" xml:space="preserve">
+    <value>新增到收藏</value>
+  </data>
+  <data name="RemoveFromFavorites" xml:space="preserve">
+    <value>取消收藏</value>
+  </data>
   <data name="FontSize" xml:space="preserve">
     <value>字型大小</value>
   </data>

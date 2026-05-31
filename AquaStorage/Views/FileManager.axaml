@@ -12,7 +12,7 @@
     <Border Margin="10" CornerRadius="10">
         <Grid>
             <Border CornerRadius="10" Margin="5">
-                <Grid RowDefinitions="Auto,Auto,*,Auto"
+                <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
                       ColumnDefinitions="*,Auto,Auto"
                       RowSpacing="8" ColumnSpacing="8" Margin="10">
 
@@ -38,12 +38,22 @@
                     <local:VolumeKnob x:Name="VolumeKnob" Grid.Row="0" Grid.Column="2"
                                       Width="40" Height="40" VerticalAlignment="Center"/>
 
+                    <!-- Search bar + All/Favorites toggle -->
+                    <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox x:Name="SearchBox" Grid.Column="0"
+                                 Watermark="{x:Static h:Localizer.Search}"
+                                 KeyUp="SearchBox_KeyUp"
+                                 TextChanged="SearchBox_TextChanged"/>
+                        <ComboBox x:Name="FilterCombo" Grid.Column="1" Width="100"
+                                  SelectionChanged="FilterCombo_SelectionChanged"/>
+                    </Grid>
+
                     <!-- Loading progress bar -->
-                    <ProgressBar x:Name="LoadingBar" Grid.Row="1" Grid.ColumnSpan="3"
+                    <ProgressBar x:Name="LoadingBar" Grid.Row="2" Grid.ColumnSpan="3"
                                  Height="6" CornerRadius="3" IsVisible="False"/>
 
-                    <!-- File tree with overlay tip -->
-                    <Panel Grid.Row="2" Grid.ColumnSpan="3">
+                    <!-- File tree with overlay tip and search results -->
+                    <Panel Grid.Row="3" Grid.ColumnSpan="3">
                         <TreeView x:Name="TreeFiles"
                                   Margin="0,4,0,0"
                                   SelectionChanged="TreeFiles_OnSelectionChanged"/>
@@ -57,7 +67,7 @@
                     </Panel>
 
                     <!-- Waveform display -->
-                    <local:WaveForm Grid.Row="3" Grid.ColumnSpan="3"
+                    <local:WaveForm Grid.Row="4" Grid.ColumnSpan="3"
                                     Height="100" x:Name="WaveForm"/>
                 </Grid>
             </Border>

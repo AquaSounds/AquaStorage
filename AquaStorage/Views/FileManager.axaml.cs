@@ -22,6 +22,7 @@ namespace AquaStorage.Views;
 public partial class FileManager : UserControl
 {
     private const string ConfigPath = "Config/FileManagerConfig";
+    private const string FavoritesConfigPath = "Config/FavoritesConfig";
 
     private List<string>? _addedPaths;
     private List<string> AddedPaths
@@ -45,6 +46,12 @@ public partial class FileManager : UserControl
     private bool _suppressSelectionChanged;
     private double _treeFontSize = CacheService.DefaultFontSize;
 
+    private string _searchText = "";
+    private bool _showFavoritesOnly;
+    private HashSet<string> _favoritePaths = new();
+    private HashSet<string> _preSearchExpanded = new();
+    private bool _searchWasActive;
+
     public FileManager()
     {
         InitializeComponent();
@@ -65,8 +72,68 @@ public partial class FileManager : UserControl
 
         App.AccentColorChanged += color => UpdateFolderIconColors(TreeFiles.Items, color);
 
+        LoadFavorites();
+
+        FilterCombo.Items.Add(new ComboBoxItem { Content = Localizer.Instance["AllFiles"] });
+        FilterCombo.Items.Add(new ComboBoxItem { Content = Localizer.Instance["Favorites"] });
+        FilterCombo.SelectedIndex = 0;
+
         _ = LoadSavedPathsOnStartup();
     }
+
+    #region Favorites
+
+    private void LoadFavorites()
+    {
+        var favs = ConfigHelper.LoadConfig<List<string>>(FavoritesConfigPath);
+        if (favs != null)
+            _favoritePaths = new HashSet<string>(favs, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void SaveFavorites()
+    {
+        ConfigHelper.SaveConfig(FavoritesConfigPath, new List<string>(_favoritePaths));
+    }
+
+    private bool IsFavorite(string path) => _favoritePaths.Contains(path);
+
+    private ToggleButton CreateStarButton(string path)
+    {
+        var starIcon = new Icon
+        {
+            Value = "fa-regular fa-star",
+            FontSize = 12,
+            Foreground = new SolidColorBrush(Colors.Gold)
+        };
+
+        var btn = new ToggleButton
+        {
+            Content = starIcon,
+            Width = 22, Height = 22,
+            Padding = new Thickness(0),
+            Margin = new Thickness(4, 0, 10, 0),
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            IsChecked = IsFavorite(path)
+        };
+
+        btn.IsCheckedChanged += (_, _) =>
+        {
+            bool isChecked = btn.IsChecked == true;
+            starIcon.Value = isChecked ? "fa-solid fa-star" : "fa-regular fa-star";
+            if (isChecked)
+                _favoritePaths.Add(path);
+            else
+                _favoritePaths.Remove(path);
+            SaveFavorites();
+            if (_showFavoritesOnly && !isChecked)
+                ApplyTreeFilter();
+        };
+
+        return btn;
+    }
+
+    #endregion
 
     #region Startup Loading
 
@@ -292,18 +359,27 @@ public partial class FileManager : UserControl
             await DragDrop.DoDragDropAsync(args, dataTransfer, DragDropEffects.Copy);
         };
 
-        var content = new StackPanel
+        var headerGrid = new Grid
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
             VerticalAlignment = VerticalAlignment.Center
         };
 
         if (fsInfo is DirectoryInfo dir)
         {
+            var starBtn = CreateStarButton(dir.FullName);
+            Grid.SetColumn(starBtn, 0);
+            headerGrid.Children.Add(starBtn);
+
             var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
-            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize, Foreground = new SolidColorBrush(accentColor) });
-            content.Children.Add(new TextBlock { Text = dir.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
+            var icon = new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize, Foreground = new SolidColorBrush(accentColor), Margin = new Thickness(2, 0, 4, 0) };
+            Grid.SetColumn(icon, 1);
+            headerGrid.Children.Add(icon);
+
+            var text = new TextBlock { Text = dir.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize,  };
+            Grid.SetColumn(text, 2);
+            headerGrid.Children.Add(text);
+
             treeItem.Tag = dir.FullName;
             await LoadChildrenAsync(dir, treeItem, isExpand);
         }
@@ -317,19 +393,30 @@ public partial class FileManager : UserControl
                 return treeItem;
             }
 
-            if (AudioFormats.IsAudioFile(file.FullName))
-                content.Children.Add(new Icon { Value = "fa-solid fa-file-waveform", FontSize = _treeFontSize });
-            else
-                content.Children.Add(new Icon { Value = "fa-regular fa-file", FontSize = _treeFontSize });
+            var starBtn = CreateStarButton(file.FullName);
+            Grid.SetColumn(starBtn, 0);
+            headerGrid.Children.Add(starBtn);
 
-            content.Children.Add(new TextBlock { Text = file.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
+            var icon = new Icon
+            {
+                Value = AudioFormats.IsAudioFile(file.FullName) ? "fa-solid fa-file-waveform" : "fa-regular fa-file",
+                FontSize = _treeFontSize,
+                Margin = new Thickness(2, 0, 4, 0)
+            };
+            Grid.SetColumn(icon, 1);
+            headerGrid.Children.Add(icon);
+
+            var text = new TextBlock { Text = file.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize,  };
+            Grid.SetColumn(text, 2);
+            headerGrid.Children.Add(text);
+
             treeItem.Tag = file.FullName;
 
             _totalLoaded++;
             UpdateProgress();
         }
 
-        treeItem.Header = content;
+        treeItem.Header = headerGrid;
         return treeItem;
     }
 
@@ -500,18 +587,27 @@ public partial class FileManager : UserControl
             await DragDrop.DoDragDropAsync(args, dataTransfer, DragDropEffects.Copy);
         };
 
-        var content = new StackPanel
+        var headerGrid = new Grid
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
             VerticalAlignment = VerticalAlignment.Center
         };
 
         if (node.IsDirectory)
         {
+            var starBtn = CreateStarButton(node.Path);
+            Grid.SetColumn(starBtn, 0);
+            headerGrid.Children.Add(starBtn);
+
             var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
-            content.Children.Add(new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize, Foreground = new SolidColorBrush(accentColor) });
-            content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
+            var icon = new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize, Foreground = new SolidColorBrush(accentColor), Margin = new Thickness(2, 0, 4, 0) };
+            Grid.SetColumn(icon, 1);
+            headerGrid.Children.Add(icon);
+
+            var text = new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize,  };
+            Grid.SetColumn(text, 2);
+            headerGrid.Children.Add(text);
+
             treeItem.Tag = node.Path;
 
             foreach (var child in node.Children)
@@ -523,16 +619,27 @@ public partial class FileManager : UserControl
         }
         else
         {
-            if (AudioFormats.IsAudioFile(node.Path))
-                content.Children.Add(new Icon { Value = "fa-solid fa-file-waveform", FontSize = _treeFontSize });
-            else
-                content.Children.Add(new Icon { Value = "fa-regular fa-file", FontSize = _treeFontSize });
+            var starBtn = CreateStarButton(node.Path);
+            Grid.SetColumn(starBtn, 0);
+            headerGrid.Children.Add(starBtn);
 
-            content.Children.Add(new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize });
+            var icon = new Icon
+            {
+                Value = AudioFormats.IsAudioFile(node.Path) ? "fa-solid fa-file-waveform" : "fa-regular fa-file",
+                FontSize = _treeFontSize,
+                Margin = new Thickness(2, 0, 4, 0)
+            };
+            Grid.SetColumn(icon, 1);
+            headerGrid.Children.Add(icon);
+
+            var text = new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize,  };
+            Grid.SetColumn(text, 2);
+            headerGrid.Children.Add(text);
+
             treeItem.Tag = node.Path;
         }
 
-        treeItem.Header = content;
+        treeItem.Header = headerGrid;
         return treeItem;
     }
 
@@ -577,6 +684,135 @@ public partial class FileManager : UserControl
         catch
         {
         }
+    }
+
+    #endregion
+
+    #region Search & Favorites Filter
+
+    private void SearchBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        var newText = SearchBox?.Text?.Trim() ?? "";
+        bool wasEmpty = string.IsNullOrEmpty(_searchText);
+        _searchText = newText;
+
+        if (wasEmpty && !string.IsNullOrEmpty(_searchText))
+        {
+            _preSearchExpanded.Clear();
+            SaveExpandedState(TreeFiles.Items);
+            _searchWasActive = true;
+        }
+
+        ApplyTreeFilter();
+
+        if (string.IsNullOrEmpty(_searchText) && _searchWasActive)
+        {
+            RestoreExpandedState(TreeFiles.Items);
+            _searchWasActive = false;
+        }
+    }
+
+    private void SearchBox_KeyUp(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            SearchBox.Text = "";
+            e.Handled = true;
+        }
+    }
+
+    private void SaveExpandedState(ItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            if (item is TreeViewItem tvItem)
+            {
+                if (tvItem.IsExpanded)
+                    _preSearchExpanded.Add(GetFullPath(tvItem));
+                SaveExpandedState(tvItem.Items);
+            }
+        }
+    }
+
+    private void RestoreExpandedState(ItemCollection items)
+    {
+        foreach (var item in items)
+        {
+            if (item is TreeViewItem tvItem)
+            {
+                tvItem.IsExpanded = _preSearchExpanded.Contains(GetFullPath(tvItem));
+                RestoreExpandedState(tvItem.Items);
+            }
+        }
+    }
+
+    private void FilterCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (FilterCombo.SelectedIndex < 0) return;
+        _showFavoritesOnly = FilterCombo.SelectedIndex == 1;
+        ApplyTreeFilter();
+    }
+
+    private void ApplyTreeFilter()
+    {
+        bool hasSearch = !string.IsNullOrEmpty(_searchText);
+        foreach (var rootItem in TreeFiles.Items)
+        {
+            if (rootItem is TreeViewItem tvItem)
+                FilterTreeItem(tvItem, hasSearch);
+        }
+    }
+
+    private bool FilterTreeItem(TreeViewItem item, bool hasSearch)
+    {
+        string path = GetFullPath(item);
+        string name = System.IO.Path.GetFileName(path);
+
+        if (hasSearch)
+        {
+            bool childMatches = false;
+            foreach (var child in item.Items)
+            {
+                if (child is TreeViewItem childItem && FilterTreeItem(childItem, true))
+                    childMatches = true;
+            }
+
+            bool selfMatches = name.Contains(_searchText, StringComparison.OrdinalIgnoreCase);
+            if (!selfMatches && !childMatches)
+            {
+                item.IsVisible = false;
+                return false;
+            }
+
+            item.IsVisible = true;
+            if (childMatches)
+                item.IsExpanded = true;
+            return true;
+        }
+
+        if (_showFavoritesOnly)
+        {
+            bool childHasFav = false;
+            foreach (var child in item.Items)
+            {
+                if (child is TreeViewItem childItem && FilterTreeItem(childItem, false))
+                    childHasFav = true;
+            }
+
+            bool anyFavInSubtree = IsFavorite(path) || childHasFav;
+            item.IsVisible = anyFavInSubtree;
+            if (anyFavInSubtree && IsFavorite(path))
+                item.IsExpanded = true;
+            return anyFavInSubtree;
+        }
+
+        foreach (var child in item.Items)
+        {
+            if (child is TreeViewItem childItem)
+                FilterTreeItem(childItem, false);
+        }
+        item.IsVisible = true;
+        return true;
     }
 
     #endregion
@@ -673,14 +909,16 @@ public partial class FileManager : UserControl
         {
             if (item is not TreeViewItem tvItem) continue;
 
-            if (tvItem.Header is StackPanel panel)
+            if (tvItem.Header is Grid grid)
             {
-                foreach (var child in panel.Children)
+                foreach (var child in grid.Children)
                 {
                     if (child is Icon icon)
                         icon.FontSize = _treeFontSize;
                     else if (child is TextBlock tb)
                         tb.FontSize = _treeFontSize;
+                    else if (child is Button btn && btn.Content is Icon btnIcon)
+                        btnIcon.FontSize = _treeFontSize > 0 ? Math.Max(10, _treeFontSize - 2) : 10;
                 }
             }
 
@@ -696,9 +934,9 @@ public partial class FileManager : UserControl
         {
             if (item is not TreeViewItem tvItem) continue;
 
-            if (tvItem.Header is StackPanel panel)
+            if (tvItem.Header is Grid grid)
             {
-                foreach (var child in panel.Children)
+                foreach (var child in grid.Children)
                 {
                     if (child is Icon icon && icon.Value == "fa-solid fa-folder")
                         icon.Foreground = brush;

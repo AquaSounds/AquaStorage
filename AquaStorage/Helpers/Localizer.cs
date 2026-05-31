@@ -63,6 +63,11 @@ public sealed class Localizer : INotifyPropertyChanged
     public static string BackgroundBlur => Instance["BackgroundBlur"];
     public static string ControlTheme => Instance["ControlTheme"];
     public static string RemoveBackground => Instance["RemoveBackground"];
+    public static string Search => Instance["Search"];
+    public static string AllFiles => Instance["AllFiles"];
+    public static string Favorites => Instance["Favorites"];
+    public static string AddToFavorites => Instance["AddToFavorites"];
+    public static string RemoveFromFavorites => Instance["RemoveFromFavorites"];
     public static string FontSize => Instance["FontSize"];
     public static string Language => Instance["Language"];
     public static string RestartRequired => Instance["RestartRequired"];
