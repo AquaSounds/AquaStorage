@@ -71,7 +71,11 @@ public partial class App : Application
     public static void ApplyTheme(bool isLight)
     {
         if (Current != null)
+        {
             Current.RequestedThemeVariant = isLight ? ThemeVariant.Light : ThemeVariant.Dark;
+            Current.Resources["WindowBackgroundBrush"] = new SolidColorBrush(
+                isLight ? Color.Parse("#F3F3F3") : Color.Parse("#2B2B2B"));
+        }
         ThemeChanged?.Invoke();
     }
 }

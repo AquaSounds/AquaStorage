@@ -9,7 +9,7 @@
         ExtendClientAreaToDecorationsHint="True"
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="0"
-        Background="Transparent">
+        Background="{DynamicResource WindowBackgroundBrush}">
     <DockPanel>
         <!-- Top bar -->
         <Border DockPanel.Dock="Top" Height="32" Background="Transparent"

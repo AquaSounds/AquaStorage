@@ -5,6 +5,7 @@
 
     <Application.Resources>
         <Color x:Key="AccentPrimary">#FF0078D4</Color>
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#2B2B2B"/>
     </Application.Resources>
 
     <Application.Styles>
