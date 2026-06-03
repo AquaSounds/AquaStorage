@@ -1,8 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -13,7 +14,6 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AquaStorage.Helpers;
-using AquaStorage.Models;
 using AquaStorage.Services;
 using Projektanker.Icons.Avalonia;
 
@@ -21,6 +21,7 @@ namespace AquaStorage.Views;
 
 public partial class FileManager : UserControl
 {
+    private readonly FsTreeService _fsTree = new();
     private const string ConfigPath = "Config/FileManagerConfig";
     private const string FavoritesConfigPath = "Config/FavoritesConfig";
 
@@ -36,12 +37,6 @@ public partial class FileManager : UserControl
 
     private void SaveConfig() => ConfigHelper.SaveConfig(ConfigPath, AddedPaths);
 
-    private readonly ProgressBar? _loadingBar;
-    private readonly TextBlock? _tipTextBlock;
-    private bool _isLoading;
-    private int _totalLoaded;
-    private int _totalItems;
-
     private readonly AudioPlayerService _audioPlayer = new();
     private bool _suppressSelectionChanged;
     private double _treeFontSize = CacheService.DefaultFontSize;
@@ -52,24 +47,19 @@ public partial class FileManager : UserControl
     private HashSet<string> _preSearchExpanded = new();
     private bool _searchWasActive;
     private CancellationTokenSource? _searchDebounce;
+    private CancellationTokenSource? _walkCts;
+    // Set to true when background walk completes; used by search
+    private bool _fsTreeReady { get; set; }
 
     public FileManager()
     {
         InitializeComponent();
-        _loadingBar = this.FindControl<ProgressBar>("LoadingBar");
-        _tipTextBlock = this.FindControl<TextBlock>("TipTextBlock");
         WaveForm.Player = _audioPlayer;
         VolumeKnob.Value = _audioPlayer.VolumeDb;
         VolumeKnob.ValueChanged += db => _audioPlayer.VolumeDb = db;
 
-        if (_loadingBar != null)
-        {
-            _loadingBar.IsVisible = false;
-            _loadingBar.Minimum = 0;
-            _loadingBar.Maximum = 100;
-        }
-
         TreeFiles.AddHandler(PointerWheelChangedEvent, TreeFiles_OnPointerWheelChanged, RoutingStrategies.Bubble, handledEventsToo: true);
+        TreeFiles.AddHandler(TreeViewItem.ExpandedEvent, OnTreeItemExpanded, RoutingStrategies.Bubble, handledEventsToo: true);
 
         App.AccentColorChanged += color => UpdateFolderIconColors(TreeFiles.Items, color);
 
@@ -141,71 +131,27 @@ public partial class FileManager : UserControl
     private async Task LoadSavedPathsOnStartup()
     {
         if (AddedPaths.Count == 0)
-        {
-            ShowTip(Localizer.Instance["TipNoSavedPaths"], false);
             return;
-        }
 
-        _isLoading = true;
-        UpdateLoadingUI(true);
-        ShowTip(string.Format(Localizer.Instance["TipLoadingPaths"], AddedPaths.Count), false);
+        ShowRootsFromDisk(AddedPaths);
 
+        // Background: walk full tree for search index
+        _ = BackgroundIndexAsync();
+    }
+
+    private async Task BackgroundIndexAsync()
+    {
+        _walkCts?.Cancel();
+        _walkCts = new CancellationTokenSource();
+        _fsTreeReady = false;
         try
         {
-            // Try loading from cache first
-            var cachedRoots = await Task.Run(() => CacheHelper.LoadFolderTree(AddedPaths));
-            if (cachedRoots != null)
-            {
-                foreach (var node in cachedRoots)
-                {
-                    var rootItem = BuildTreeItemFromCache(node);
-                    await Dispatcher.UIThread.InvokeAsync(() => TreeFiles.Items.Add(rootItem));
-                }
-                ShowTip(string.Format(Localizer.Instance["TipLoadedFromCache"], AddedPaths.Count), false);
-                _isLoading = false;
-                UpdateLoadingUI(false);
-                return;
-            }
-
-            // Cache miss — scan filesystem
-            var treeDataRoots = new List<TreeNodeData>();
-
-            foreach (var path in AddedPaths)
-            {
-                if (!Directory.Exists(path))
-                {
-                    ShowTip(string.Format(Localizer.Instance["TipNotFound"], path), true);
-                    continue;
-                }
-
-                var dirInfo = new DirectoryInfo(path);
-                _totalItems = 0;
-                _totalLoaded = 0;
-                await Task.Run(() => CountItems(dirInfo));
-
-                var rootItem = await CreateTreeItemAsync(dirInfo, false);
-                rootItem.Tag = path;
-
-                var nodeData = await Task.Run(() => BuildTreeNodeData(dirInfo));
-                treeDataRoots.Add(nodeData);
-
-                await Dispatcher.UIThread.InvokeAsync(() => TreeFiles.Items.Add(rootItem));
-            }
-
-            // Save to cache
-            if (treeDataRoots.Count > 0)
-                await Task.Run(() => CacheHelper.SaveFolderTree(treeDataRoots, AddedPaths));
-
-            ShowTip(string.Format(Localizer.Instance["TipLoadedPaths"], AddedPaths.Count), false);
+            await _fsTree.WalkAsync(AddedPaths, _walkCts.Token);
+            _fsTreeReady = true;
         }
-        catch (Exception ex)
+        catch
         {
-            ShowTip(string.Format(Localizer.Instance["TipLoadFailed"], ex.Message), true);
-        }
-        finally
-        {
-            _isLoading = false;
-            UpdateLoadingUI(false);
+            // Walk failed silently — search just won't be available
         }
     }
 
@@ -215,8 +161,6 @@ public partial class FileManager : UserControl
 
     private async void BtnAdd_Click(object? sender, RoutedEventArgs e)
     {
-        if (_isLoading) return;
-
         var topLevel = TopLevel.GetTopLevel(this);
         if (topLevel == null) return;
 
@@ -227,10 +171,7 @@ public partial class FileManager : UserControl
 
             if (folders.Count == 0) return;
 
-            _isLoading = true;
-            UpdateLoadingUI(true);
-            int added = 0;
-
+            var newPaths = new List<string>();
             foreach (var folder in folders)
             {
                 var inputPath = folder.Path.LocalPath;
@@ -238,54 +179,34 @@ public partial class FileManager : UserControl
 
                 if (!Directory.Exists(inputPath))
                 {
-                    ShowTip(string.Format(Localizer.Instance["TipNotFound"], inputPath), true);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                        ShowTip(string.Format(Localizer.Instance["TipNotFound"], inputPath), true));
                     continue;
                 }
                 if (AddedPaths.Contains(inputPath))
                 {
-                    ShowTip(string.Format(Localizer.Instance["TipAlreadyAdded"], inputPath), true);
+                    await Dispatcher.UIThread.InvokeAsync(() =>
+                        ShowTip(string.Format(Localizer.Instance["TipAlreadyAdded"], inputPath), true));
                     continue;
                 }
 
-                try
-                {
-                    _totalLoaded = 0;
-                    _totalItems = 0;
+                newPaths.Add(inputPath);
+                AddedPaths.Add(inputPath);
+                SaveConfig();
 
-                    var dirInfo = new DirectoryInfo(inputPath);
-                    await Task.Run(() => CountItems(dirInfo));
-                    var rootItem = await CreateTreeItemAsync(dirInfo, false);
-                    rootItem.Tag = inputPath;
-
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        AddedPaths.Add(inputPath);
-                        SaveConfig();
-                        TreeFiles.Items.Add(rootItem);
-                        rootItem.IsExpanded = false;
-                        TreeFiles.SelectedItem = rootItem;
-                        TreeFiles.Focus();
-                        added++;
-                    });
-
-                    CacheHelper.ClearAll(); // invalidate cache
-                }
-                catch (Exception ex)
-                {
-                    ShowTip(string.Format(Localizer.Instance["TipFailedToLoad"], inputPath, ex.Message), true);
-                }
+                var rootItem = CreateDirectoryNode(GetDirName(inputPath), inputPath);
+                await Dispatcher.UIThread.InvokeAsync(() => TreeFiles.Items.Add(rootItem));
             }
 
-            ShowTip(added > 0 ? string.Format(Localizer.Instance["TipAddedFolders"], added) : Localizer.Instance["TipNoNewFolders"], false);
+            if (newPaths.Count > 0)
+            {
+                ShowTip(string.Format(Localizer.Instance["TipAddedFolders"], newPaths.Count), false);
+                _ = BackgroundIndexAsync();
+            }
         }
         catch (Exception ex)
         {
             ShowTip(string.Format(Localizer.Instance["TipFolderSelectionFailed"], ex.Message), true);
-        }
-        finally
-        {
-            _isLoading = false;
-            UpdateLoadingUI(false);
         }
     }
 
@@ -300,7 +221,6 @@ public partial class FileManager : UserControl
                 AddedPaths.Remove(deletedPath);
                 SaveConfig();
                 RemoveTreeItemByPath(deletedPath);
-                CacheHelper.ClearAll(); // invalidate cache
                 ShowTip(string.Format(Localizer.Instance["TipRemoved"], deletedPath), false);
             }
         };
@@ -312,173 +232,149 @@ public partial class FileManager : UserControl
 
     #region TreeView Construction
 
-    private async Task<TreeViewItem> CreateTreeItemAsync(FileSystemInfo fsInfo, bool isExpand)
+    /// <summary>
+    /// Placeholder item used to make the expand arrow appear for non-empty directories.
+    /// </summary>
+    private sealed class PlaceholderItem : TreeViewItem
     {
-        var treeItem = new TreeViewItem { IsExpanded = isExpand };
-
-        treeItem.PointerWheelChanged += OnItemWheelChanged;
-
-        // Drag support — only trigger after significant pointer movement
-        var itemPressed = false;
-        var pressPoint = new Point();
-        const double DragThreshold = 10.0;
-
-        treeItem.PointerPressed += (_, e) =>
-        {
-            itemPressed = true;
-            pressPoint = e.GetPosition(treeItem);
-        };
-        treeItem.PointerReleased += (_, _) => itemPressed = false;
-        treeItem.PointerMoved += async (sender, args) =>
-        {
-            if (!itemPressed || sender is not TreeViewItem item) return;
-
-            var pos = args.GetPosition(item);
-            if (Math.Abs(pos.X - pressPoint.X) < DragThreshold &&
-                Math.Abs(pos.Y - pressPoint.Y) < DragThreshold)
-                return;
-
-            itemPressed = false;
-
-            string path = GetFullPath(item);
-            if (!File.Exists(path) || !AudioFormats.IsAudioFile(path))
-                return;
-
-            var dataTransfer = new DataTransfer();
-            var top = TopLevel.GetTopLevel(this);
-            if (top != null)
-            {
-                var storageFile = await top.StorageProvider.TryGetFileFromPathAsync(path);
-                if (storageFile == null) return;
-
-                var dataItem = new DataTransferItem();
-                dataItem.Set(DataFormat.File, storageFile);
-                dataTransfer.Add(dataItem);
-            }
-
-            _audioPlayer.Stop();
-            await DragDrop.DoDragDropAsync(args, dataTransfer, DragDropEffects.Copy);
-        };
-
-        var headerGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        if (fsInfo is DirectoryInfo dir)
-        {
-            var starBtn = CreateStarButton(dir.FullName);
-            Grid.SetColumn(starBtn, 0);
-            headerGrid.Children.Add(starBtn);
-
-            var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
-            var icon = new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize, Foreground = new SolidColorBrush(accentColor), Margin = new Thickness(2, 0, 4, 0) };
-            Grid.SetColumn(icon, 1);
-            headerGrid.Children.Add(icon);
-
-            var text = new TextBlock { Text = dir.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize,  };
-            Grid.SetColumn(text, 2);
-            headerGrid.Children.Add(text);
-
-            treeItem.Tag = dir.FullName;
-            await LoadChildrenAsync(dir, treeItem, isExpand);
-        }
-        else if (fsInfo is FileInfo file)
-        {
-            if ((file.Attributes & FileAttributes.Hidden) != 0 || (file.Attributes & FileAttributes.System) != 0)
-            {
-                _totalLoaded++;
-                UpdateProgress();
-                treeItem.Header = new TextBlock();
-                return treeItem;
-            }
-
-            var starBtn = CreateStarButton(file.FullName);
-            Grid.SetColumn(starBtn, 0);
-            headerGrid.Children.Add(starBtn);
-
-            var icon = new Icon
-            {
-                Value = AudioFormats.IsAudioFile(file.FullName) ? "fa-solid fa-file-waveform" : "fa-regular fa-file",
-                FontSize = _treeFontSize,
-                Margin = new Thickness(2, 0, 4, 0)
-            };
-            Grid.SetColumn(icon, 1);
-            headerGrid.Children.Add(icon);
-
-            var text = new TextBlock { Text = file.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize,  };
-            Grid.SetColumn(text, 2);
-            headerGrid.Children.Add(text);
-
-            treeItem.Tag = file.FullName;
-
-            _totalLoaded++;
-            UpdateProgress();
-        }
-
-        treeItem.Header = headerGrid;
-        return treeItem;
+        public PlaceholderItem() => Header = new TextBlock();
     }
 
-    private async Task LoadChildrenAsync(DirectoryInfo dir, TreeViewItem parent, bool isExpand)
+    private static bool DirHasEntries(string path)
     {
+        try { return Directory.EnumerateFileSystemEntries(path).Any(); }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Extract the last component from a path. Handles both / and \ separators.
+    /// </summary>
+    private static string GetDirName(string path)
+    {
+        var span = path.AsSpan().TrimEnd('\\').TrimEnd('/');
+        int idx = span.LastIndexOfAny('\\', '/');
+        return idx >= 0 ? span.Slice(idx + 1).ToString() : span.ToString();
+    }
+
+    /// <summary>
+    /// Read root directories and build top-level TreeViewItems instantly.
+    /// Uses Dispatcher.InvokeAsync instead of async/await because this may be called
+    /// from the constructor before Avalonia's SynchronizationContext is active.
+    /// </summary>
+    private void ShowRootsFromDisk(List<string> paths)
+    {
+        Task.Run(() =>
+        {
+            var list = new List<(string Name, string Path)>();
+            foreach (var rootPath in paths)
+            {
+                if (!Directory.Exists(rootPath)) continue;
+                list.Add((GetDirName(rootPath), rootPath));
+            }
+
+            Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                foreach (var (name, path) in list)
+                {
+                    var item = CreateDirectoryNode(name, path);
+                    TreeFiles.Items.Add(item);
+                }
+            });
+        });
+    }
+
+    /// <summary>
+    /// Build a file TreeViewItem with icon, star button, and drag support.
+    /// </summary>
+    private TreeViewItem CreateFileNode(string name, string path)
+    {
+        var isAudio = AudioFormats.IsAudioFile(path);
+        var item = new TreeViewItem { Tag = path };
+        item.PointerWheelChanged += OnItemWheelChanged;
+        SetupDragSupport(item);
+
+        var iconValue = isAudio ? "fa-solid fa-file-waveform" : "fa-regular fa-file";
+        item.Header = BuildHeaderGrid(path, name, iconValue, isAudio ? null : Colors.White);
+        return item;
+    }
+
+    /// <summary>
+    /// Build a directory TreeViewItem. Adds placeholder if non-empty.
+    /// </summary>
+    private TreeViewItem CreateDirectoryNode(string name, string path)
+    {
+        var item = new TreeViewItem { Tag = path };
+        item.PointerWheelChanged += OnItemWheelChanged;
+        SetupDragSupport(item);
+
+        var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
+        item.Header = BuildHeaderGrid(path, name, "fa-solid fa-folder", accentColor);
+
+        // Only show expand arrow if directory has entries
+        if (DirHasEntries(path))
+            item.Items.Add(new PlaceholderItem());
+
+        return item;
+    }
+
+    /// <summary>
+    /// Populate children of a directory TreeViewItem on first expand.
+    /// </summary>
+    private async void ExpandDirectory(TreeViewItem item)
+    {
+        var path = item.Tag as string;
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return;
+
+        // Clear placeholder
+        item.Items.Clear();
+
         try
         {
-            var (subDirs, files) = await Task.Run(() =>
+            // Read filesystem on background thread
+            var entries = await Task.Run(() =>
             {
-                var dirs = new List<DirectoryInfo>();
-                var fils = new List<FileInfo>();
-
-                foreach (var d in dir.GetDirectories())
+                var list = new List<(string Name, string Path, bool IsDir)>();
+                foreach (var d in Directory.GetDirectories(path))
                 {
-                    if ((d.Attributes & FileAttributes.Hidden) != 0 || (d.Attributes & FileAttributes.System) != 0)
-                        continue;
-                    dirs.Add(d);
+                    if (IsHiddenOrSystem(d)) continue;
+                    list.Add((GetDirName(d), d, true));
                 }
-                foreach (var f in dir.GetFiles())
+                foreach (var f in Directory.GetFiles(path))
                 {
-                    if ((f.Attributes & FileAttributes.Hidden) != 0 || (f.Attributes & FileAttributes.System) != 0)
-                        continue;
-                    fils.Add(f);
+                    if (IsHiddenOrSystem(f)) continue;
+                    list.Add((GetDirName(f), f, false));
                 }
-                return (dirs, fils);
+                return list;
             });
 
-            var children = new List<TreeViewItem>();
-
-            var tasks = new List<Task<TreeViewItem>>();
-            foreach (var sub in subDirs)
-                tasks.Add(CreateTreeItemAsync(sub, isExpand));
-            children.AddRange(await Task.WhenAll(tasks));
-
-            foreach (var file in files)
-                children.Add(await CreateTreeItemAsync(file, isExpand));
-
-            Dispatcher.UIThread.Post(() =>
+            // Create UI elements on UI thread
+            foreach (var (name, entryPath, isDir) in entries)
             {
-                foreach (var child in children)
-                    if (child.Header != null)
-                        parent.Items.Add(child);
-            });
-
-            _totalLoaded += subDirs.Count;
-            UpdateProgress();
+                TreeViewItem child = isDir
+                    ? CreateDirectoryNode(name, entryPath)
+                    : CreateFileNode(name, entryPath);
+                item.Items.Add(child);
+            }
         }
         catch (Exception ex)
         {
-            Dispatcher.UIThread.Post(() =>
+            item.Items.Add(new TreeViewItem
             {
-                parent.Items.Add(new TreeViewItem
+                Header = new TextBlock
                 {
-                    Header = new TextBlock
-                    {
-                        Text = $"[Error: {ex.Message}]",
-                        Foreground = Brushes.DarkRed,
-                        Margin = new Thickness(18, 0, 0, 0)
-                    }
-                });
+                    Text = $"[Error: {ex.Message}]",
+                    Foreground = Brushes.DarkRed,
+                    Margin = new Thickness(18, 0, 0, 0)
+                }
             });
+        }
+    }
+
+    private void OnTreeItemExpanded(object? sender, RoutedEventArgs e)
+    {
+        if (e.Source is TreeViewItem item && item.Items.Count == 1 && item.Items[0] is PlaceholderItem)
+        {
+            ExpandDirectory(item);
         }
     }
 
@@ -503,145 +399,6 @@ public partial class FileManager : UserControl
                     TreeFiles.SelectedItem = null;
             }
         });
-    }
-
-    // ── Cache helpers ──────────────────────────────────────────────────
-
-    private static TreeNodeData BuildTreeNodeData(DirectoryInfo dir)
-    {
-        var node = new TreeNodeData
-        {
-            Name = dir.Name,
-            Path = dir.FullName,
-            IsDirectory = true
-        };
-
-        try
-        {
-            foreach (var d in dir.GetDirectories())
-            {
-                if ((d.Attributes & FileAttributes.Hidden) != 0 || (d.Attributes & FileAttributes.System) != 0)
-                    continue;
-                node.Children.Add(BuildTreeNodeData(d));
-            }
-            foreach (var f in dir.GetFiles())
-            {
-                if ((f.Attributes & FileAttributes.Hidden) != 0 || (f.Attributes & FileAttributes.System) != 0)
-                    continue;
-                node.Children.Add(new TreeNodeData
-                {
-                    Name = f.Name,
-                    Path = f.FullName,
-                    IsDirectory = false
-                });
-            }
-        }
-        catch { }
-
-        return node;
-    }
-
-    private TreeViewItem BuildTreeItemFromCache(TreeNodeData node)
-    {
-        var treeItem = new TreeViewItem { IsExpanded = false };
-        treeItem.PointerWheelChanged += OnItemWheelChanged;
-
-        // Drag support — only trigger after significant pointer movement
-        var itemPressed = false;
-        var pressPoint = new Point();
-        const double DragThreshold = 10.0;
-
-        treeItem.PointerPressed += (_, e) =>
-        {
-            itemPressed = true;
-            pressPoint = e.GetPosition(treeItem);
-        };
-        treeItem.PointerReleased += (_, _) => itemPressed = false;
-        treeItem.PointerMoved += async (sender, args) =>
-        {
-            if (!itemPressed || sender is not TreeViewItem item) return;
-
-            var pos = args.GetPosition(item);
-            if (Math.Abs(pos.X - pressPoint.X) < DragThreshold &&
-                Math.Abs(pos.Y - pressPoint.Y) < DragThreshold)
-                return;
-
-            itemPressed = false;
-
-            string path = GetFullPath(item);
-            if (!File.Exists(path) || !AudioFormats.IsAudioFile(path))
-                return;
-
-            var dataTransfer = new DataTransfer();
-            var top = TopLevel.GetTopLevel(this);
-            if (top != null)
-            {
-                var storageFile = await top.StorageProvider.TryGetFileFromPathAsync(path);
-                if (storageFile == null) return;
-
-                var dataItem = new DataTransferItem();
-                dataItem.Set(DataFormat.File, storageFile);
-                dataTransfer.Add(dataItem);
-            }
-
-            _audioPlayer.Stop();
-            await DragDrop.DoDragDropAsync(args, dataTransfer, DragDropEffects.Copy);
-        };
-
-        var headerGrid = new Grid
-        {
-            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
-            VerticalAlignment = VerticalAlignment.Center
-        };
-
-        if (node.IsDirectory)
-        {
-            var starBtn = CreateStarButton(node.Path);
-            Grid.SetColumn(starBtn, 0);
-            headerGrid.Children.Add(starBtn);
-
-            var accentColor = Application.Current?.FindResource("AccentPrimary") is Color c ? c : Colors.DodgerBlue;
-            var icon = new Icon { Value = "fa-solid fa-folder", FontSize = _treeFontSize, Foreground = new SolidColorBrush(accentColor), Margin = new Thickness(2, 0, 4, 0) };
-            Grid.SetColumn(icon, 1);
-            headerGrid.Children.Add(icon);
-
-            var text = new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize,  };
-            Grid.SetColumn(text, 2);
-            headerGrid.Children.Add(text);
-
-            treeItem.Tag = node.Path;
-
-            foreach (var child in node.Children)
-            {
-                var childItem = BuildTreeItemFromCache(child);
-                if (childItem.Header != null)
-                    treeItem.Items.Add(childItem);
-            }
-        }
-        else
-        {
-            var starBtn = CreateStarButton(node.Path);
-            Grid.SetColumn(starBtn, 0);
-            headerGrid.Children.Add(starBtn);
-
-            var icon = new Icon
-            {
-                Value = AudioFormats.IsAudioFile(node.Path) ? "fa-solid fa-file-waveform" : "fa-regular fa-file",
-                FontSize = _treeFontSize,
-                Margin = new Thickness(2, 0, 4, 0)
-            };
-            Grid.SetColumn(icon, 1);
-            headerGrid.Children.Add(icon);
-
-            var text = new TextBlock { Text = node.Name, VerticalAlignment = VerticalAlignment.Center, FontSize = _treeFontSize,  };
-            Grid.SetColumn(text, 2);
-            headerGrid.Children.Add(text);
-
-            treeItem.Tag = node.Path;
-        }
-
-        treeItem.Header = headerGrid;
-        return treeItem;
     }
 
     #endregion
@@ -912,62 +669,118 @@ public partial class FileManager : UserControl
         catch { return string.Empty; }
     }
 
-    private void CountItems(DirectoryInfo dir)
+    private static bool IsHiddenOrSystem(string path)
     {
         try
         {
-            foreach (var d in dir.GetDirectories())
+            var attr = File.GetAttributes(path);
+            return (attr & (FileAttributes.Hidden | FileAttributes.System)) != 0;
+        }
+        catch { return false; }
+    }
+
+    private void SetupDragSupport(TreeViewItem treeItem)
+    {
+        var itemPressed = false;
+        var pressPoint = new Point();
+        const double DragThreshold = 10.0;
+
+        treeItem.PointerPressed += (_, e) =>
+        {
+            itemPressed = true;
+            pressPoint = e.GetPosition(treeItem);
+        };
+        treeItem.PointerReleased += (_, _) => itemPressed = false;
+        treeItem.PointerMoved += async (sender, args) =>
+        {
+            if (!itemPressed || sender is not TreeViewItem item) return;
+
+            var pos = args.GetPosition(item);
+            if (Math.Abs(pos.X - pressPoint.X) < DragThreshold &&
+                Math.Abs(pos.Y - pressPoint.Y) < DragThreshold)
+                return;
+
+            itemPressed = false;
+
+            string path = GetFullPath(item);
+            if (!File.Exists(path) || !AudioFormats.IsAudioFile(path))
+                return;
+
+            var dataTransfer = new DataTransfer();
+            var top = TopLevel.GetTopLevel(this);
+            if (top != null)
             {
-                if ((d.Attributes & FileAttributes.Hidden) != 0 || (d.Attributes & FileAttributes.System) != 0)
-                    continue;
-                _totalItems++;
-                CountItems(d);
+                var storageFile = await top.StorageProvider.TryGetFileFromPathAsync(path);
+                if (storageFile == null) return;
+
+                var dataItem = new DataTransferItem();
+                dataItem.Set(DataFormat.File, storageFile);
+                dataTransfer.Add(dataItem);
             }
-            foreach (var f in dir.GetFiles())
+
+            _audioPlayer.Stop();
+            await DragDrop.DoDragDropAsync(args, dataTransfer, DragDropEffects.Copy);
+        };
+    }
+
+    private Grid BuildHeaderGrid(string path, string name, string iconValue, Color? iconColor)
+    {
+        var grid = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,Auto,*"),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        var starBtn = CreateStarButton(path);
+        Grid.SetColumn(starBtn, 0);
+        grid.Children.Add(starBtn);
+
+        var icon = new Icon
+        {
+            Value = iconValue,
+            FontSize = _treeFontSize,
+            Margin = new Thickness(2, 0, 4, 0)
+        };
+        if (iconColor.HasValue)
+            icon.Foreground = new SolidColorBrush(iconColor.Value);
+        Grid.SetColumn(icon, 1);
+        grid.Children.Add(icon);
+
+        var text = new TextBlock
+        {
+            Text = name,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = _treeFontSize
+        };
+        Grid.SetColumn(text, 2);
+        grid.Children.Add(text);
+
+        return grid;
+    }
+
+    private async void ShowTip(string message, bool isError)
+    {
+        try
+        {
+            var tipBlock = this.FindControl<TextBlock>("TipTextBlock");
+            if (tipBlock == null) return;
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if ((f.Attributes & FileAttributes.Hidden) != 0 || (f.Attributes & FileAttributes.System) != 0)
-                    continue;
-                _totalItems++;
-            }
+                tipBlock.Text = message;
+                tipBlock.Foreground = isError ? Brushes.Red : Brushes.White;
+                tipBlock.IsVisible = true;
+            });
+
+            await Task.Delay(3000);
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                tipBlock.IsVisible = false;
+                tipBlock.Text = string.Empty;
+            });
         }
         catch { }
-    }
-
-    private void UpdateProgress()
-    {
-        if (_totalItems == 0 || _loadingBar == null) return;
-        var pct = (double)_totalLoaded / _totalItems * 100;
-        Dispatcher.UIThread.Post(() => _loadingBar.Value = Math.Min(pct, 100));
-    }
-
-    private void UpdateLoadingUI(bool isLoading)
-    {
-        if (_loadingBar == null) return;
-        Dispatcher.UIThread.Post(() =>
-        {
-            _loadingBar.IsVisible = isLoading;
-            _loadingBar.Value = isLoading ? 0 : 100;
-        });
-    }
-
-    private void ShowTip(string message, bool isError)
-    {
-        if (_tipTextBlock == null) return;
-        Dispatcher.UIThread.Post(() =>
-        {
-            _tipTextBlock.Text = message;
-            _tipTextBlock.Foreground = isError ? Brushes.Red : Brushes.White;
-            _tipTextBlock.IsVisible = true;
-
-            Task.Delay(3000).ContinueWith(_ =>
-            {
-                Dispatcher.UIThread.Post(() =>
-                { 
-                    _tipTextBlock.IsVisible = false;
-                    _tipTextBlock.Text = string.Empty;
-                });
-            });
-        });
     }
 
     private void OnItemWheelChanged(object? sender, PointerWheelEventArgs e)
@@ -994,7 +807,7 @@ public partial class FileManager : UserControl
     {
         foreach (var item in items)
         {
-            if (item is not TreeViewItem tvItem) continue;
+            if (item is not TreeViewItem tvItem || tvItem is PlaceholderItem) continue;
 
             if (tvItem.Header is Grid grid)
             {
@@ -1019,7 +832,7 @@ public partial class FileManager : UserControl
         var brush = new SolidColorBrush(color);
         foreach (var item in items)
         {
-            if (item is not TreeViewItem tvItem) continue;
+            if (item is not TreeViewItem tvItem || tvItem is PlaceholderItem) continue;
 
             if (tvItem.Header is Grid grid)
             {

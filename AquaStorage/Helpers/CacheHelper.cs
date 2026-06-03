@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using AquaStorage.Models;
 
 namespace AquaStorage.Helpers;
 
@@ -30,49 +28,6 @@ public static class CacheHelper
     {
         if (!Directory.Exists(dir))
             Directory.CreateDirectory(dir);
-    }
-
-    // ── Folder Tree ────────────────────────────────────────────────────
-
-    private static string FolderTreePath => Path.Combine(GetCacheDir(), "FolderTree");
-
-    public static void SaveFolderTree(List<TreeNodeData> roots, List<string> rootPaths)
-    {
-        var dir = GetCacheDir();
-        EnsureDir(dir);
-
-        var cache = new FolderTreeCache
-        {
-            RootPaths = new List<string>(rootPaths),
-            Roots = roots
-        };
-
-        string json = JsonHelper.Serialize(cache);
-        File.WriteAllText(FolderTreePath, json, Encoding.UTF8);
-    }
-
-    public static List<TreeNodeData>? LoadFolderTree(List<string> currentPaths)
-    {
-        try
-        {
-            if (!File.Exists(FolderTreePath)) return null;
-
-            string json = File.ReadAllText(FolderTreePath, Encoding.UTF8);
-            var cache = JsonHelper.Deserialize<FolderTreeCache>(json);
-            if (cache == null || cache.Roots.Count == 0) return null;
-
-            if (cache.RootPaths.Count != currentPaths.Count) return null;
-
-            var saved = new HashSet<string>(cache.RootPaths, StringComparer.OrdinalIgnoreCase);
-            var current = new HashSet<string>(currentPaths, StringComparer.OrdinalIgnoreCase);
-            if (!saved.SetEquals(current)) return null;
-
-            return cache.Roots;
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     // ── Waveform ───────────────────────────────────────────────────────

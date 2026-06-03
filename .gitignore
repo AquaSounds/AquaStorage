@@ -5,3 +5,4 @@ riderModule.iml
 /_ReSharper.Caches/
 /.claude/
 /.idea/
+/rust-core/target/

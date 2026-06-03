@@ -3,6 +3,7 @@
         <OutputType>WinExe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
         <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
         <ApplicationManifest>app.manifest</ApplicationManifest>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -37,5 +38,31 @@
       <EmbeddedResource Update="Resources\Strings.zh-Hans.resx" />
       <EmbeddedResource Update="Resources\Strings.zh-Hant.resx" />
       <EmbeddedResource Update="Resources\Strings.ja.resx" />
+    </ItemGroup>
+
+    <!-- Rust native library build integration -->
+    <PropertyGroup>
+        <NativeExt Condition="$([MSBuild]::IsOSPlatform('Windows'))">.dll</NativeExt>
+        <NativeExt Condition="$([MSBuild]::IsOSPlatform('OSX'))">.dylib</NativeExt>
+        <NativeExt Condition="$([MSBuild]::IsOSPlatform('Linux'))">.so</NativeExt>
+        <RustProjectDir>$(ProjectDir)..\rust-core</RustProjectDir>
+        <RustBuildProfile Condition="'$(Configuration)' == 'Release'">--release</RustBuildProfile>
+    </PropertyGroup>
+
+    <Target Name="BuildRust" BeforeTargets="BeforeBuild">
+        <Exec Command="cargo build $(RustBuildProfile)" WorkingDirectory="$(RustProjectDir)" />
+    </Target>
+
+    <ItemGroup>
+        <ContentWithTargetPath Include="$(RustProjectDir)\target\debug\aqua_core$(NativeExt)"
+                               Condition="'$(Configuration)' != 'Release' and '$(OS)' == 'Windows_NT'">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>aqua_core$(NativeExt)</TargetPath>
+        </ContentWithTargetPath>
+        <ContentWithTargetPath Include="$(RustProjectDir)\target\release\aqua_core$(NativeExt)"
+                               Condition="'$(Configuration)' == 'Release' and '$(OS)' == 'Windows_NT'">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>aqua_core$(NativeExt)</TargetPath>
+        </ContentWithTargetPath>
     </ItemGroup>
 </Project>
