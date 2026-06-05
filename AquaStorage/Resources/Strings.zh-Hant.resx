@@ -203,6 +203,18 @@
   <data name="RemoveFromFavorites" xml:space="preserve">
     <value>取消收藏</value>
   </data>
+  <data name="Searching" xml:space="preserve">
+    <value>搜尋中...</value>
+  </data>
+  <data name="SearchProgress" xml:space="preserve">
+    <value>已找到 {0} 個匹配...</value>
+  </data>
+  <data name="SearchResult" xml:space="preserve">
+    <value>{0} 個匹配</value>
+  </data>
+  <data name="NoMatches" xml:space="preserve">
+    <value>未找到匹配項</value>
+  </data>
   <data name="FontSize" xml:space="preserve">
     <value>字型大小</value>
   </data>

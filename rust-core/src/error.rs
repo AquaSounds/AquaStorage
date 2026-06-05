@@ -14,7 +14,7 @@ pub fn clear_error() {
 
 pub fn error_ptr() -> *const u8 {
     LAST_ERROR.with(|e| {
-        let e = e.borrow_mut();
+        let e = e.borrow();
         match &*e {
             Some(s) => s.as_ptr(),
             None => std::ptr::null(),

@@ -203,6 +203,18 @@
   <data name="RemoveFromFavorites" xml:space="preserve">
     <value>Remove from Favorites</value>
   </data>
+  <data name="Searching" xml:space="preserve">
+    <value>Searching...</value>
+  </data>
+  <data name="SearchProgress" xml:space="preserve">
+    <value>{0} matches...</value>
+  </data>
+  <data name="SearchResult" xml:space="preserve">
+    <value>{0} matches</value>
+  </data>
+  <data name="NoMatches" xml:space="preserve">
+    <value>No matches found</value>
+  </data>
   <data name="FontSize" xml:space="preserve">
     <value>Font Size</value>
   </data>

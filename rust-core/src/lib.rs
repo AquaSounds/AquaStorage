@@ -1,9 +1,16 @@
 mod error;
 mod tree;
 
+use std::cell::RefCell;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use tree::FsTree;
+
+// ─── Thread-local path buffer ────────────────────────────────────────────
+
+thread_local! {
+    static NODE_PATH_BUF: RefCell<Vec<u16>> = RefCell::new(Vec::new());
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -200,7 +207,7 @@ fn zeroed_node_info() -> NodeInfo {
 /// Returns null on error. Free with free_search_result.
 #[no_mangle]
 pub unsafe extern "C" fn search_tree(
-    tree: *const FsTree,
+    tree: *mut FsTree,
     query: *const u16,
     cancel: *const u8,
 ) -> *mut SearchResult {
@@ -216,13 +223,80 @@ pub unsafe extern "C" fn search_tree(
         return std::ptr::null_mut();
     }
 
-    let tree = &*tree;
+    let tree = &mut *tree;
     let (matches, ancestors) = tree.search(&query_str, cancel);
 
     let mut result = Box::new(SearchResult::new());
     let ancestor_vec: Vec<u32> = ancestors.into_iter().collect();
     result.set(matches, ancestor_vec);
     Box::into_raw(result)
+}
+
+/// Chunked search: scan nodes in [start_from, start_from + max_scan).
+/// Uses cached parent_of index for incremental scanning performance.
+/// Returns null on error. Free with free_search_result.
+#[no_mangle]
+pub unsafe extern "C" fn search_tree_chunked(
+    tree: *mut FsTree,
+    query: *const u16,
+    start_from: u32,
+    max_scan: u32,
+    cancel: *const u8,
+) -> *mut SearchResult {
+    error::clear_error();
+    if tree.is_null() {
+        error::set_error("tree is null".to_string());
+        return std::ptr::null_mut();
+    }
+
+    let query_str = read_utf16_str(query);
+    if query_str.is_empty() {
+        error::set_error("query is empty".to_string());
+        return std::ptr::null_mut();
+    }
+
+    if max_scan == 0 {
+        return std::ptr::null_mut();
+    }
+
+    let tree = &mut *tree;
+    let (matches, ancestors) = tree.search_chunked(&query_str, start_from, max_scan, cancel);
+
+    let mut result = Box::new(SearchResult::new());
+    let ancestor_vec: Vec<u32> = ancestors.into_iter().collect();
+    result.set(matches, ancestor_vec);
+    Box::into_raw(result)
+}
+
+/// Get full path for a node. Returns null if invalid node_id.
+/// Valid until next FFI call on this thread.
+#[no_mangle]
+pub unsafe extern "C" fn get_node_full_path(tree: *const FsTree, node_id: u32) -> *const u16 {
+    if tree.is_null() {
+        return std::ptr::null();
+    }
+    let tree = &*tree;
+    match tree.get_node(node_id) {
+        Some(node) => {
+            NODE_PATH_BUF.with(|buf| {
+                let mut buf = buf.borrow_mut();
+                buf.clear();
+                buf.extend(OsStr::new(&node.path).encode_wide());
+                buf.push(0);
+                buf.as_ptr()
+            })
+        }
+        None => std::ptr::null(),
+    }
+}
+
+/// Length of the path returned by get_node_full_path, in u16 code units (excluding null).
+#[no_mangle]
+pub unsafe extern "C" fn get_node_full_path_len() -> u32 {
+    NODE_PATH_BUF.with(|buf| {
+        let buf = buf.borrow();
+        if buf.is_empty() { 0 } else { (buf.len() - 1) as u32 }
+    })
 }
 
 /// Free a search result.
@@ -391,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_search() {
-        let (tree, dir) = test_walk();
+        let (mut tree, dir) = test_walk();
         let (matches, ancestors) = tree.search("a.wav", std::ptr::null());
         assert!(!matches.is_empty());
         assert!(!ancestors.is_empty());

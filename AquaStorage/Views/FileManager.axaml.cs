@@ -50,6 +50,7 @@ public partial class FileManager : UserControl
     private CancellationTokenSource? _walkCts;
     // Set to true when background walk completes; used by search
     private bool _fsTreeReady { get; set; }
+    private readonly HashSet<string> _searchCreatedItems = new(StringComparer.OrdinalIgnoreCase);
 
     public FileManager()
     {
@@ -146,12 +147,11 @@ public partial class FileManager : UserControl
         _fsTreeReady = false;
         try
         {
-            await _fsTree.WalkAsync(AddedPaths, _walkCts.Token);
-            _fsTreeReady = true;
+            _fsTreeReady = await _fsTree.WalkAsync(AddedPaths, _walkCts.Token);
         }
         catch
         {
-            // Walk failed silently — search just won't be available
+            _fsTreeReady = false;
         }
     }
 
@@ -254,6 +254,15 @@ public partial class FileManager : UserControl
         var span = path.AsSpan().TrimEnd('\\').TrimEnd('/');
         int idx = span.LastIndexOfAny('\\', '/');
         return idx >= 0 ? span.Slice(idx + 1).ToString() : span.ToString();
+    }
+
+    /// <summary>
+    /// Compare two filesystem paths, trimming trailing separators.
+    /// </summary>
+    private static bool PathsEqual(string a, string b)
+    {
+        return a.AsSpan().TrimEnd('\\').TrimEnd('/')
+                .Equals(b.AsSpan().TrimEnd('\\').TrimEnd('/'), StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -472,7 +481,12 @@ public partial class FileManager : UserControl
             if (!string.IsNullOrEmpty(_searchText))
                 await ApplySearchFilterAsync(token);
             else
-                await Dispatcher.UIThread.InvokeAsync(() => ApplyTreeFilter());
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    ClearSearchItems();
+                    ApplyTreeFilter();
+                    TipTextBlock.IsVisible = false;
+                });
 
             if (string.IsNullOrEmpty(_searchText) && _searchWasActive)
             {
@@ -488,59 +502,332 @@ public partial class FileManager : UserControl
 
     private async Task ApplySearchFilterAsync(CancellationToken token)
     {
-        // Collect tree snapshot on UI thread
+        if (_fsTreeReady)
+            await ApplyRustSearchAsync(token);
+        else
+            await ApplyTreeSearchAsync(token);
+    }
+
+    /// <summary>
+    /// Rust search: scan the full index in chunks, render results.
+    /// </summary>
+    private async Task ApplyRustSearchAsync(CancellationToken token)
+    {
+        var search = _searchText;
+        var showFavOnly = _showFavoritesOnly;
+        var favPaths = _favoritePaths;
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            ClearSearchItems();
+            foreach (var rootItem in TreeFiles.Items)
+                if (rootItem is TreeViewItem tv)
+                    HideTreeBranch(tv);
+            TipTextBlock.Text = Localizer.Instance["Searching"];
+            TipTextBlock.IsVisible = true;
+        });
+
+        const uint CHUNK = 10000;
+        int total = _fsTree.NodeCount;
+        var allMatches = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var allAncestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (uint offset = 0; offset < total; offset += CHUNK)
+        {
+            if (token.IsCancellationRequested || _searchText != search) return;
+
+            var (newMatches, newAncestors) = await Task.Run(() =>
+            {
+                var (mIds, aIds) = _fsTree.SearchChunked(search, offset, CHUNK, token);
+                var nM = new List<string>(mIds.Count);
+                foreach (var id in mIds)
+                {
+                    var p = _fsTree.GetNodePath(id);
+                    if (!string.IsNullOrEmpty(p)) nM.Add(p);
+                }
+                var nA = new List<string>(aIds.Count);
+                foreach (var id in aIds)
+                {
+                    var p = _fsTree.GetNodePath(id);
+                    if (!string.IsNullOrEmpty(p)) nA.Add(p);
+                }
+                return (nM, nA);
+            });
+
+            if (token.IsCancellationRequested || _searchText != search) return;
+
+            if (showFavOnly)
+                newMatches = newMatches.Where(p => favPaths.Contains(p)).ToList();
+
+            allMatches.UnionWith(newMatches);
+            allAncestors.UnionWith(newAncestors);
+
+            var snapM = new HashSet<string>(allMatches, StringComparer.OrdinalIgnoreCase);
+            var snapA = new HashSet<string>(allAncestors, StringComparer.OrdinalIgnoreCase);
+            var snapMatchCount = allMatches.Count;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (token.IsCancellationRequested || _searchText != search) return;
+                foreach (var p in newAncestors)
+                    EnsureTreeItem(p);
+                foreach (var p in newMatches)
+                    EnsureTreeItem(p);
+                ApplySearchVisibility(snapM, snapA);
+                TipTextBlock.Text = string.Format(Localizer.Instance["SearchProgress"], snapMatchCount);
+            }, DispatcherPriority.Background);
+
+            await Task.Yield();
+        }
+
+        if (token.IsCancellationRequested || _searchText != search) return;
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (allMatches.Count == 0)
+            {
+                TipTextBlock.Text = Localizer.Instance["NoMatches"];
+            }
+            else
+            {
+                TipTextBlock.Text = string.Format(Localizer.Instance["SearchResult"], allMatches.Count);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Fallback: search over loaded C# TreeView items.
+    /// </summary>
+    private async Task ApplyTreeSearchAsync(CancellationToken token)
+    {
         var flat = new List<(TreeViewItem item, string path, string name, string? parentPath)>();
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
             CollectFlatItems(TreeFiles.Items, null, flat);
         });
 
-        // Compute visibility on background thread
+        if (token.IsCancellationRequested || flat.Count == 0) return;
+
         var search = _searchText;
         var showFavOnly = _showFavoritesOnly;
         var favPaths = _favoritePaths;
-        var (visible, expand) = await Task.Run(() =>
+
+        var pathToParent = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (_, path, _, parentPath) in flat)
+            pathToParent[path] = parentPath;
+
+        Dispatcher.UIThread.Post(() =>
         {
-            var vis = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var exp = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var pathToParent = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-            foreach (var (_, path, _, parentPath) in flat)
-                pathToParent[path] = parentPath;
+            if (token.IsCancellationRequested) return;
+            foreach (var (item, _, _, _) in flat)
+                item.IsVisible = false;
+            TipTextBlock.Text = Localizer.Instance["Searching"];
+            TipTextBlock.IsVisible = true;
+        }, DispatcherPriority.Background);
 
-            foreach (var (_, path, name, _) in flat)
+        const int batchSize = 300;
+        var visible = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var expand = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (int i = 0; i < flat.Count; i += batchSize)
+        {
+            if (token.IsCancellationRequested) return;
+            var end = Math.Min(i + batchSize, flat.Count);
+
+            var batchResult = await Task.Run(() =>
             {
-                if (token.IsCancellationRequested) break;
-                bool match = name.Contains(search, StringComparison.OrdinalIgnoreCase);
-                bool isFav = favPaths.Contains(path);
-
-                bool shouldShow = showFavOnly ? (match && isFav) : match;
-                if (shouldShow)
+                var bv = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var be = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (int j = i; j < end; j++)
                 {
-                    vis.Add(path);
-                    // Mark ancestors visible + expand them
+                    var (_, path, name, _) = flat[j];
+                    if (!name.Contains(search, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (showFavOnly && !favPaths.Contains(path)) continue;
+
+                    bv.Add(path);
                     var p = pathToParent.GetValueOrDefault(path);
                     while (p != null)
                     {
-                        vis.Add(p);
-                        exp.Add(p);
+                        bv.Add(p);
+                        be.Add(p);
                         p = pathToParent.GetValueOrDefault(p);
                     }
                 }
-            }
-            return (vis, exp);
-        }, token);
+                return (bv, be);
+            });
+
+            if (token.IsCancellationRequested) return;
+            visible.UnionWith(batchResult.bv);
+            expand.UnionWith(batchResult.be);
+
+            var snapV = new HashSet<string>(visible, StringComparer.OrdinalIgnoreCase);
+            var snapE = new HashSet<string>(expand, StringComparer.OrdinalIgnoreCase);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (token.IsCancellationRequested) return;
+                foreach (var (item, path, _, _) in flat)
+                {
+                    if (snapV.Contains(path))
+                    {
+                        item.IsVisible = true;
+                        if (snapE.Contains(path))
+                            item.IsExpanded = true;
+                    }
+                }
+            }, DispatcherPriority.Background);
+
+            await Task.Yield();
+        }
 
         if (token.IsCancellationRequested) return;
-
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            foreach (var (item, path, _, _) in flat)
+            if (visible.Count == 0)
             {
-                item.IsVisible = visible.Contains(path);
-                if (expand.Contains(path))
-                    item.IsExpanded = true;
+                TipTextBlock.Text = Localizer.Instance["NoMatches"];
+                TipTextBlock.IsVisible = true;
+            }
+            else
+            {
+                TipTextBlock.Text = "";
+                TipTextBlock.IsVisible = false;
             }
         });
+    }
+
+    private void ApplySearchVisibility(HashSet<string> matches, HashSet<string> ancestors)
+    {
+        foreach (var rootItem in TreeFiles.Items)
+        {
+            if (rootItem is TreeViewItem tv)
+                ApplySearchVisibilityRecursive(tv, matches, ancestors);
+        }
+    }
+
+    private void ApplySearchVisibilityRecursive(TreeViewItem item, HashSet<string> matches, HashSet<string> ancestors)
+    {
+        var path = GetFullPath(item);
+        if (string.IsNullOrEmpty(path)) return;
+
+        bool isMatch = matches.Contains(path);
+        bool isAncestor = ancestors.Contains(path);
+
+        if (isMatch || isAncestor)
+        {
+            item.IsVisible = true;
+            if (isAncestor)
+                item.IsExpanded = true;
+        }
+        else if (_searchCreatedItems.Contains(path))
+        {
+            item.IsVisible = false;
+        }
+
+        foreach (var child in item.Items)
+            if (child is TreeViewItem childTv)
+                ApplySearchVisibilityRecursive(childTv, matches, ancestors);
+    }
+
+    private static void HideTreeBranch(TreeViewItem item)
+    {
+        item.IsVisible = false;
+        foreach (var child in item.Items)
+            if (child is TreeViewItem childTv)
+                HideTreeBranch(childTv);
+    }
+
+    /// <summary>
+    /// Ensure a TreeViewItem for fullPath, creating missing ancestors.
+    /// </summary>
+    private TreeViewItem? EnsureTreeItem(string fullPath)
+    {
+        if (string.IsNullOrEmpty(fullPath)) return null;
+
+        // Build ancestor chain: Push is deep→shallow, so Stack top is shallowest
+        var segments = new Stack<string>();
+        var current = fullPath;
+        while (current != null)
+        {
+            segments.Push(current);
+            current = Path.GetDirectoryName(current);
+        }
+
+        // Discard segments above the tree root (e.g. "D:\" when tree has "D:\Music")
+        while (segments.Count > 0)
+        {
+            var top = segments.Peek();
+            bool exists = false;
+            foreach (var item in TreeFiles.Items)
+            {
+                if (item is TreeViewItem tv && tv.Tag is string tag &&
+                    PathsEqual(tag, top))
+                { exists = true; break; }
+            }
+            if (exists) break;
+            segments.Pop();
+        }
+
+        ItemCollection items = TreeFiles.Items;
+        TreeViewItem? result = null;
+
+        while (segments.Count > 0)
+        {
+            var seg = segments.Pop();
+            TreeViewItem? found = null;
+
+            foreach (var item in items)
+            {
+                if (item is TreeViewItem tv && tv.Tag is string tag &&
+                    PathsEqual(tag, seg))
+                {
+                    found = tv;
+                    break;
+                }
+            }
+
+            if (found == null)
+            {
+                var isDir = segments.Count > 0 || Directory.Exists(seg);
+                var name = GetDirName(seg);
+                found = isDir ? CreateDirectoryNode(name, seg) : CreateFileNode(name, seg);
+                items.Add(found);
+                _searchCreatedItems.Add(seg);
+            }
+
+            result = found;
+            items = found.Items;
+        }
+
+        return result;
+    }
+
+    private void ClearSearchItems()
+    {
+        if (_searchCreatedItems.Count == 0) return;
+        foreach (var rootItem in TreeFiles.Items)
+        {
+            if (rootItem is TreeViewItem tv)
+                RemoveSearchItemsFrom(tv.Items);
+        }
+        _searchCreatedItems.Clear();
+    }
+
+    private void RemoveSearchItemsFrom(ItemCollection items)
+    {
+        for (int i = items.Count - 1; i >= 0; i--)
+        {
+            if (items[i] is TreeViewItem tv)
+            {
+                var path = GetFullPath(tv);
+                if (!string.IsNullOrEmpty(path) && _searchCreatedItems.Contains(path))
+                {
+                    items.RemoveAt(i);
+                    continue;
+                }
+                RemoveSearchItemsFrom(tv.Items);
+            }
+        }
     }
 
     private void CollectFlatItems(ItemCollection items, string? parentPath, List<(TreeViewItem, string, string, string?)> result)
@@ -590,11 +877,25 @@ public partial class FileManager : UserControl
         }
     }
 
-    private void FilterCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void FilterCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (FilterCombo.SelectedIndex < 0) return;
         _showFavoritesOnly = FilterCombo.SelectedIndex == 1;
-        ApplyTreeFilter();
+
+        if (!string.IsNullOrEmpty(_searchText))
+        {
+            _searchDebounce?.Cancel();
+            _searchDebounce = new CancellationTokenSource();
+            try
+            {
+                await ApplySearchFilterAsync(_searchDebounce.Token);
+            }
+            catch (TaskCanceledException) { }
+        }
+        else
+        {
+            ApplyTreeFilter();
+        }
     }
 
     private void ApplyTreeFilter()

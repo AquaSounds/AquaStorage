@@ -53,6 +53,15 @@ public static class NativeMethods
     public static extern unsafe nint search_tree(nint tree, char* query, byte* cancel);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe nint search_tree_chunked(nint tree, char* query, uint startFrom, uint maxScan, byte* cancel);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern unsafe char* get_node_full_path(nint tree, uint nodeId);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint get_node_full_path_len();
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern void free_search_result(nint result);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

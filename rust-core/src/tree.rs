@@ -21,10 +21,26 @@ pub struct CacheMeta {
     pub root_paths: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct FsTree {
     pub nodes: Vec<FsNode>,
     pub root_indices: Vec<u32>,
+    #[serde(skip, default = "empty_parent_cache")]
+    parent_of: Option<Vec<u32>>,
+}
+
+fn empty_parent_cache() -> Option<Vec<u32>> {
+    None
+}
+
+impl Clone for FsTree {
+    fn clone(&self) -> Self {
+        FsTree {
+            nodes: self.nodes.clone(),
+            root_indices: self.root_indices.clone(),
+            parent_of: self.parent_of.clone(),
+        }
+    }
 }
 
 /// Sentinel for "no parent" / "root level" queries
@@ -44,7 +60,25 @@ impl FsTree {
         FsTree {
             nodes: Vec::new(),
             root_indices: Vec::new(),
+            parent_of: None,
         }
+    }
+
+    /// Build parent_of index lazily. Called once per search session.
+    fn ensure_parent_of(&mut self) {
+        if self.parent_of.is_some() {
+            return;
+        }
+        let mut p = vec![ROOT_ID; self.nodes.len()];
+        for (i, node) in self.nodes.iter().enumerate() {
+            for &child in &node.children {
+                p[child as usize] = i as u32;
+            }
+        }
+        for &root_idx in &self.root_indices {
+            p[root_idx as usize] = ROOT_ID;
+        }
+        self.parent_of = Some(p);
     }
 
     fn alloc_node(&mut self, node: FsNode) -> u32 {
@@ -294,24 +328,15 @@ impl FsTree {
     /// Search for nodes whose name contains `query` (case-insensitive).
     /// Returns (matching_node_ids, ancestor_ids_to_expand).
     pub fn search(
-        &self,
+        &mut self,
         query: &str,
         cancel: *const u8,
     ) -> (Vec<u32>, HashSet<u32>) {
+        self.ensure_parent_of();
+        let parent_of = self.parent_of.as_ref().unwrap();
         let query_lower = query.to_lowercase();
         let mut matches: Vec<u32> = Vec::new();
         let mut ancestors: HashSet<u32> = HashSet::new();
-
-        // Collect parent pointers
-        let mut parent_of: Vec<u32> = vec![ROOT_ID; self.nodes.len()];
-        for (i, node) in self.nodes.iter().enumerate() {
-            for &child in &node.children {
-                parent_of[child as usize] = i as u32;
-            }
-        }
-        for &root_idx in &self.root_indices {
-            parent_of[root_idx as usize] = ROOT_ID;
-        }
 
         let mut count: u64 = 0;
         for (i, node) in self.nodes.iter().enumerate() {
@@ -324,7 +349,46 @@ impl FsTree {
 
             if node.name.to_lowercase().contains(&query_lower) {
                 matches.push(i as u32);
-                // Walk up to mark ancestors
+                let mut p = parent_of[i];
+                while p != ROOT_ID {
+                    ancestors.insert(p);
+                    p = parent_of[p as usize];
+                }
+            }
+        }
+
+        (matches, ancestors)
+    }
+
+    /// Chunked search: scan nodes in [start_from, start_from + max_scan).
+    /// Uses the cached parent_of index (lazy-built on first chunk).
+    pub fn search_chunked(
+        &mut self,
+        query: &str,
+        start_from: u32,
+        max_scan: u32,
+        cancel: *const u8,
+    ) -> (Vec<u32>, HashSet<u32>) {
+        self.ensure_parent_of();
+        let parent_of = self.parent_of.as_ref().unwrap();
+        let query_lower = query.to_lowercase();
+        let mut matches: Vec<u32> = Vec::new();
+        let mut ancestors: HashSet<u32> = HashSet::new();
+
+        let start = start_from as usize;
+        let end = (start + max_scan as usize).min(self.nodes.len());
+
+        let mut count: u64 = 0;
+        for i in start..end {
+            count += 1;
+            if count % 5000 == 0 {
+                if !cancel.is_null() && unsafe { *cancel != 0 } {
+                    return (Vec::new(), HashSet::new());
+                }
+            }
+
+            if self.nodes[i].name.to_lowercase().contains(&query_lower) {
+                matches.push(i as u32);
                 let mut p = parent_of[i];
                 while p != ROOT_ID {
                     ancestors.insert(p);

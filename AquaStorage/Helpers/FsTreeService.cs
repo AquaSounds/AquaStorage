@@ -14,8 +14,8 @@ public sealed class FsTreeService : IDisposable
     public const uint RootId = uint.MaxValue;
 
     private FsTreeHandle? _handle;
-    private byte _cancelFlag;
     private bool _disposed;
+    private readonly SemaphoreSlim _treeLock = new(1, 1);
 
     public bool IsLoaded => _handle != null && !_handle.IsInvalid;
 
@@ -26,46 +26,54 @@ public sealed class FsTreeService : IDisposable
     {
         ReleaseTree();
 
-        _cancelFlag = 0;
-        using var ctr = ct.Register(() => _cancelFlag = 1);
-
+        byte[] cancelArr = new byte[1];
+        var cancelHandle = GCHandle.Alloc(cancelArr, GCHandleType.Pinned);
         try
         {
-            var ptrs = AllocUtf16Array(rootPaths);
+            using var ctr = ct.Register(() => cancelArr[0] = 1);
+
             try
             {
-                var count = rootPaths.Count;
-                var handle = await Task.Run(() =>
+                var ptrs = AllocUtf16Array(rootPaths);
+                try
                 {
-                    unsafe
+                    var count = rootPaths.Count;
+                    var handle = await Task.Run(() =>
                     {
-                        fixed (byte* cancelPtr = &_cancelFlag)
-                        fixed (nint* rootPtr = ptrs)
+                        unsafe
                         {
-                            return NativeMethods.walk_tree(rootPtr, count, cancelPtr);
+                            byte* cancelPtr = (byte*)cancelHandle.AddrOfPinnedObject();
+                            fixed (nint* rootPtr = ptrs)
+                            {
+                                return NativeMethods.walk_tree(rootPtr, count, cancelPtr);
+                            }
                         }
+                    }, ct);
+
+                    if (handle != nint.Zero)
+                    {
+                        _handle = new FsTreeHandle(handle);
+                        return true;
                     }
-                }, ct);
 
-                if (handle != nint.Zero)
-                {
-                    _handle = new FsTreeHandle(handle);
-                    return true;
+                    var err = NativeMethods.GetLastError();
+                    if (err == "cancelled")
+                        return false;
+                    throw new InvalidOperationException($"Walk failed: {err ?? "unknown error"}");
                 }
-
-                var err = NativeMethods.GetLastError();
-                if (err == "cancelled")
-                    return false;
-                throw new InvalidOperationException($"Walk failed: {err ?? "unknown error"}");
+                finally
+                {
+                    FreeUtf16Array(ptrs);
+                }
             }
-            finally
+            catch (OperationCanceledException)
             {
-                FreeUtf16Array(ptrs);
+                return false;
             }
         }
-        catch (OperationCanceledException)
+        finally
         {
-            return false;
+            cancelHandle.Free();
         }
     }
 
@@ -108,36 +116,110 @@ public sealed class FsTreeService : IDisposable
     }
 
     /// <summary>
+    /// Total node count in the Rust tree. Returns 0 if tree not loaded.
+    /// </summary>
+    public int NodeCount => _handle == null ? 0 : NativeMethods.tree_node_count(_handle.DangerousGetHandle());
+
+    /// <summary>
+    /// Get the full filesystem path for a node by its Rust index.
+    /// </summary>
+    public unsafe string GetNodePath(uint nodeId)
+    {
+        if (_handle == null) return string.Empty;
+        var ptr = NativeMethods.get_node_full_path(_handle.DangerousGetHandle(), nodeId);
+        if ((nint)ptr == nint.Zero) return string.Empty;
+        var len = NativeMethods.get_node_full_path_len();
+        return Marshal.PtrToStringUni((nint)ptr, (int)len) ?? string.Empty;
+    }
+
+    /// <summary>
     /// Search tree. Returns (matching IDs, ancestor IDs to expand).
+    /// Each call allocates its own cancellation flag so concurrent calls are independent.
     /// </summary>
     public unsafe (List<uint> Matches, List<uint> Ancestors) Search(string query, CancellationToken ct = default)
     {
         if (_handle == null) return (new(), new());
 
-        _cancelFlag = 0;
-        using var ctr = ct.Register(() => _cancelFlag = 1);
-
-        fixed (byte* cancelPtr = &_cancelFlag)
-        fixed (char* queryPtr = query)
+        _treeLock.Wait(ct);
+        try
         {
-            var resultPtr = NativeMethods.search_tree(_handle.DangerousGetHandle(), queryPtr, cancelPtr);
-            if (resultPtr == nint.Zero) return (new(), new());
-
-            using var resultHandle = new SearchResultHandle(resultPtr);
-            unsafe
+            byte[] cancelArr = new byte[1];
+            var cancelHandle = GCHandle.Alloc(cancelArr, GCHandleType.Pinned);
+            try
             {
-                var result = Marshal.PtrToStructure<SearchResultNative>(resultPtr);
-                var matches = new List<uint>((int)result.MatchCount);
-                var ancestors = new List<uint>((int)result.AncestorCount);
+                using var ctr = ct.Register(() => cancelArr[0] = 1);
+                byte* cancelPtr = (byte*)cancelHandle.AddrOfPinnedObject();
 
-                for (int i = 0; i < result.MatchCount; i++)
-                    matches.Add(((uint*)result.MatchIds)[i]);
-                for (int i = 0; i < result.AncestorCount; i++)
-                    ancestors.Add(((uint*)result.AncestorIds)[i]);
+                fixed (char* queryPtr = query)
+                {
+                    var resultPtr = NativeMethods.search_tree(_handle.DangerousGetHandle(), queryPtr, cancelPtr);
+                    if (resultPtr == nint.Zero) return (new(), new());
 
-                return (matches, ancestors);
+                    using var resultHandle = new SearchResultHandle(resultPtr);
+                    return UnmarshalSearchResult(resultPtr);
+                }
+            }
+            finally
+            {
+                cancelHandle.Free();
             }
         }
+        finally
+        {
+            _treeLock.Release();
+        }
+    }
+
+    /// <summary>
+    /// Chunked search: scan nodes in [startFrom, startFrom + maxScan).
+    /// Each call allocates its own cancellation flag so concurrent calls are independent.
+    /// </summary>
+    public unsafe (List<uint> Matches, List<uint> Ancestors) SearchChunked(string query, uint startFrom, uint maxScan, CancellationToken ct = default)
+    {
+        if (_handle == null) return (new(), new());
+
+        _treeLock.Wait(ct);
+        try
+        {
+            byte[] cancelArr = new byte[1];
+            var cancelHandle = GCHandle.Alloc(cancelArr, GCHandleType.Pinned);
+            try
+            {
+                using var ctr = ct.Register(() => cancelArr[0] = 1);
+                byte* cancelPtr = (byte*)cancelHandle.AddrOfPinnedObject();
+
+                fixed (char* queryPtr = query)
+                {
+                    var resultPtr = NativeMethods.search_tree_chunked(_handle.DangerousGetHandle(), queryPtr, startFrom, maxScan, cancelPtr);
+                    if (resultPtr == nint.Zero) return (new(), new());
+
+                    using var resultHandle = new SearchResultHandle(resultPtr);
+                    return UnmarshalSearchResult(resultPtr);
+                }
+            }
+            finally
+            {
+                cancelHandle.Free();
+            }
+        }
+        finally
+        {
+            _treeLock.Release();
+        }
+    }
+
+    private static unsafe (List<uint> Matches, List<uint> Ancestors) UnmarshalSearchResult(nint resultPtr)
+    {
+        var result = Marshal.PtrToStructure<SearchResultNative>(resultPtr);
+        var matches = new List<uint>((int)result.MatchCount);
+        var ancestors = new List<uint>((int)result.AncestorCount);
+
+        for (int i = 0; i < result.MatchCount; i++)
+            matches.Add(((uint*)result.MatchIds)[i]);
+        for (int i = 0; i < result.AncestorCount; i++)
+            ancestors.Add(((uint*)result.AncestorIds)[i]);
+
+        return (matches, ancestors);
     }
 
     private void ReleaseTree()

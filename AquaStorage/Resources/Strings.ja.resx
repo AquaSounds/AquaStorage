@@ -203,6 +203,18 @@
   <data name="RemoveFromFavorites" xml:space="preserve">
     <value>お気に入りから削除</value>
   </data>
+  <data name="Searching" xml:space="preserve">
+    <value>検索中...</value>
+  </data>
+  <data name="SearchProgress" xml:space="preserve">
+    <value>{0} 件見つかりました...</value>
+  </data>
+  <data name="SearchResult" xml:space="preserve">
+    <value>{0} 件見つかりました</value>
+  </data>
+  <data name="NoMatches" xml:space="preserve">
+    <value>見つかりませんでした</value>
+  </data>
   <data name="FontSize" xml:space="preserve">
     <value>フォントサイズ</value>
   </data>
