@@ -51,6 +51,7 @@ public partial class FileManager : UserControl
     // Set to true when background walk completes; used by search
     private bool _fsTreeReady { get; set; }
     private readonly HashSet<string> _searchCreatedItems = new(StringComparer.OrdinalIgnoreCase);
+    private int _searchGeneration;
 
     public FileManager()
     {
@@ -89,36 +90,39 @@ public partial class FileManager : UserControl
 
     private bool IsFavorite(string path) => _favoritePaths.Contains(path);
 
-    private ToggleButton CreateStarButton(string path)
+    private Button CreateStarButton(string path)
     {
+        var isFav = IsFavorite(path);
         var starIcon = new Icon
         {
-            Value = "fa-regular fa-star",
+            Value = isFav ? "fa-solid fa-star" : "fa-regular fa-star",
             FontSize = 12,
             Foreground = new SolidColorBrush(Colors.Gold)
         };
 
-        var btn = new ToggleButton
+        var btn = new Button
         {
             Content = starIcon,
             Width = 22, Height = 22,
             Padding = new Thickness(0),
             Margin = new Thickness(4, 0, 10, 0),
             Background = Brushes.Transparent,
+            BorderBrush = Brushes.Transparent,
             BorderThickness = new Thickness(0),
-            IsChecked = IsFavorite(path)
+            FocusAdorner = null
         };
 
-        btn.IsCheckedChanged += (_, _) =>
+        btn.Click += (_, _) =>
         {
-            bool isChecked = btn.IsChecked == true;
-            starIcon.Value = isChecked ? "fa-solid fa-star" : "fa-regular fa-star";
-            if (isChecked)
-                _favoritePaths.Add(path);
+            var pathNow = path;
+            var nowFav = !IsFavorite(pathNow);
+            starIcon.Value = nowFav ? "fa-solid fa-star" : "fa-regular fa-star";
+            if (nowFav)
+                _favoritePaths.Add(pathNow);
             else
-                _favoritePaths.Remove(path);
+                _favoritePaths.Remove(pathNow);
             SaveFavorites();
-            if (_showFavoritesOnly && !isChecked)
+            if (_showFavoritesOnly && !nowFav)
                 ApplyTreeFilter();
         };
 
@@ -483,6 +487,7 @@ public partial class FileManager : UserControl
             else
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
+                    Interlocked.Increment(ref _searchGeneration);
                     ClearSearchItems();
                     ApplyTreeFilter();
                     TipTextBlock.IsVisible = false;
@@ -497,7 +502,7 @@ public partial class FileManager : UserControl
                 });
             }
         }
-        catch (TaskCanceledException) { }
+        catch (OperationCanceledException) { }
     }
 
     private async Task ApplySearchFilterAsync(CancellationToken token)
@@ -516,9 +521,12 @@ public partial class FileManager : UserControl
         var search = _searchText;
         var showFavOnly = _showFavoritesOnly;
         var favPaths = _favoritePaths;
+        var gen = Interlocked.Increment(ref _searchGeneration);
+        bool alive() => gen == Volatile.Read(ref _searchGeneration) && !token.IsCancellationRequested;
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
+            if (!alive()) return;
             ClearSearchItems();
             foreach (var rootItem in TreeFiles.Items)
                 if (rootItem is TreeViewItem tv)
@@ -527,6 +535,8 @@ public partial class FileManager : UserControl
             TipTextBlock.IsVisible = true;
         });
 
+        if (!alive()) return;
+
         const uint CHUNK = 10000;
         int total = _fsTree.NodeCount;
         var allMatches = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -534,27 +544,34 @@ public partial class FileManager : UserControl
 
         for (uint offset = 0; offset < total; offset += CHUNK)
         {
-            if (token.IsCancellationRequested || _searchText != search) return;
+            if (!alive()) return;
 
             var (newMatches, newAncestors) = await Task.Run(() =>
             {
-                var (mIds, aIds) = _fsTree.SearchChunked(search, offset, CHUNK, token);
-                var nM = new List<string>(mIds.Count);
-                foreach (var id in mIds)
+                try
                 {
-                    var p = _fsTree.GetNodePath(id);
-                    if (!string.IsNullOrEmpty(p)) nM.Add(p);
+                    var (mIds, aIds) = _fsTree.SearchChunked(search, offset, CHUNK, token);
+                    var nM = new List<string>(mIds.Count);
+                    foreach (var id in mIds)
+                    {
+                        var p = _fsTree.GetNodePath(id);
+                        if (!string.IsNullOrEmpty(p)) nM.Add(p);
+                    }
+                    var nA = new List<string>(aIds.Count);
+                    foreach (var id in aIds)
+                    {
+                        var p = _fsTree.GetNodePath(id);
+                        if (!string.IsNullOrEmpty(p)) nA.Add(p);
+                    }
+                    return (nM, nA);
                 }
-                var nA = new List<string>(aIds.Count);
-                foreach (var id in aIds)
+                catch (OperationCanceledException)
                 {
-                    var p = _fsTree.GetNodePath(id);
-                    if (!string.IsNullOrEmpty(p)) nA.Add(p);
+                    return (new List<string>(), new List<string>());
                 }
-                return (nM, nA);
             });
 
-            if (token.IsCancellationRequested || _searchText != search) return;
+            if (!alive()) return;
 
             if (showFavOnly)
                 newMatches = newMatches.Where(p => favPaths.Contains(p)).ToList();
@@ -568,7 +585,7 @@ public partial class FileManager : UserControl
 
             Dispatcher.UIThread.Post(() =>
             {
-                if (token.IsCancellationRequested || _searchText != search) return;
+                if (!alive()) return;
                 foreach (var p in newAncestors)
                     EnsureTreeItem(p);
                 foreach (var p in newMatches)
@@ -580,10 +597,29 @@ public partial class FileManager : UserControl
             await Task.Yield();
         }
 
-        if (token.IsCancellationRequested || _searchText != search) return;
+        if (!alive()) return;
+
+        if (showFavOnly)
+        {
+            var prunedAncestors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var m in allMatches)
+            {
+                var d = Path.GetDirectoryName(m);
+                while (d != null)
+                {
+                    if (allAncestors.Contains(d))
+                        prunedAncestors.Add(d);
+                    var parent = Path.GetDirectoryName(d);
+                    if (parent == null || parent.Length >= d.Length) break;
+                    d = parent;
+                }
+            }
+            allAncestors = prunedAncestors;
+        }
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
+            if (!alive()) return;
             if (allMatches.Count == 0)
             {
                 TipTextBlock.Text = Localizer.Instance["NoMatches"];
@@ -592,6 +628,7 @@ public partial class FileManager : UserControl
             {
                 TipTextBlock.Text = string.Format(Localizer.Instance["SearchResult"], allMatches.Count);
             }
+            ApplySearchVisibility(allMatches, allAncestors);
         });
     }
 
@@ -600,17 +637,20 @@ public partial class FileManager : UserControl
     /// </summary>
     private async Task ApplyTreeSearchAsync(CancellationToken token)
     {
-        var flat = new List<(TreeViewItem item, string path, string name, string? parentPath)>();
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            CollectFlatItems(TreeFiles.Items, null, flat);
-        });
-
-        if (token.IsCancellationRequested || flat.Count == 0) return;
-
         var search = _searchText;
         var showFavOnly = _showFavoritesOnly;
         var favPaths = _favoritePaths;
+        var gen = Interlocked.Increment(ref _searchGeneration);
+        bool alive() => gen == Volatile.Read(ref _searchGeneration) && !token.IsCancellationRequested;
+
+        var flat = new List<(TreeViewItem item, string path, string name, string? parentPath)>();
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (!alive()) return;
+            CollectFlatItems(TreeFiles.Items, null, flat);
+        });
+
+        if (!alive() || flat.Count == 0) return;
 
         var pathToParent = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var (_, path, _, parentPath) in flat)
@@ -618,7 +658,7 @@ public partial class FileManager : UserControl
 
         Dispatcher.UIThread.Post(() =>
         {
-            if (token.IsCancellationRequested) return;
+            if (!alive()) return;
             foreach (var (item, _, _, _) in flat)
                 item.IsVisible = false;
             TipTextBlock.Text = Localizer.Instance["Searching"];
@@ -628,22 +668,25 @@ public partial class FileManager : UserControl
         const int batchSize = 300;
         var visible = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var expand = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int matchCount = 0;
 
         for (int i = 0; i < flat.Count; i += batchSize)
         {
-            if (token.IsCancellationRequested) return;
+            if (!alive()) return;
             var end = Math.Min(i + batchSize, flat.Count);
 
-            var batchResult = await Task.Run(() =>
+            var (bv, be, count) = await Task.Run(() =>
             {
                 var bv = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 var be = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                int c = 0;
                 for (int j = i; j < end; j++)
                 {
                     var (_, path, name, _) = flat[j];
                     if (!name.Contains(search, StringComparison.OrdinalIgnoreCase)) continue;
                     if (showFavOnly && !favPaths.Contains(path)) continue;
 
+                    c++;
                     bv.Add(path);
                     var p = pathToParent.GetValueOrDefault(path);
                     while (p != null)
@@ -653,19 +696,21 @@ public partial class FileManager : UserControl
                         p = pathToParent.GetValueOrDefault(p);
                     }
                 }
-                return (bv, be);
+                return (bv, be, c);
             });
 
-            if (token.IsCancellationRequested) return;
-            visible.UnionWith(batchResult.bv);
-            expand.UnionWith(batchResult.be);
+            if (!alive()) return;
+            visible.UnionWith(bv);
+            expand.UnionWith(be);
+            matchCount += count;
 
             var snapV = new HashSet<string>(visible, StringComparer.OrdinalIgnoreCase);
             var snapE = new HashSet<string>(expand, StringComparer.OrdinalIgnoreCase);
+            var snapCount = matchCount;
 
             Dispatcher.UIThread.Post(() =>
             {
-                if (token.IsCancellationRequested) return;
+                if (!alive()) return;
                 foreach (var (item, path, _, _) in flat)
                 {
                     if (snapV.Contains(path))
@@ -675,23 +720,24 @@ public partial class FileManager : UserControl
                             item.IsExpanded = true;
                     }
                 }
+                TipTextBlock.Text = string.Format(Localizer.Instance["SearchProgress"], snapCount);
             }, DispatcherPriority.Background);
 
             await Task.Yield();
         }
 
-        if (token.IsCancellationRequested) return;
+        if (!alive()) return;
+
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
+            if (!alive()) return;
             if (visible.Count == 0)
             {
                 TipTextBlock.Text = Localizer.Instance["NoMatches"];
-                TipTextBlock.IsVisible = true;
             }
             else
             {
-                TipTextBlock.Text = "";
-                TipTextBlock.IsVisible = false;
+                TipTextBlock.Text = string.Format(Localizer.Instance["SearchResult"], matchCount);
             }
         });
     }
@@ -884,13 +930,14 @@ public partial class FileManager : UserControl
 
         if (!string.IsNullOrEmpty(_searchText))
         {
+            Interlocked.Increment(ref _searchGeneration);
             _searchDebounce?.Cancel();
             _searchDebounce = new CancellationTokenSource();
             try
             {
                 await ApplySearchFilterAsync(_searchDebounce.Token);
             }
-            catch (TaskCanceledException) { }
+            catch (OperationCanceledException) { }
         }
         else
         {
@@ -938,13 +985,18 @@ public partial class FileManager : UserControl
         if (_showFavoritesOnly)
         {
             bool childHasFav = false;
+            bool hasAnyTvChild = false;
             foreach (var child in item.Items)
             {
-                if (child is TreeViewItem childItem && FilterTreeItem(childItem, false))
-                    childHasFav = true;
+                if (child is TreeViewItem childItem)
+                {
+                    hasAnyTvChild = true;
+                    if (FilterTreeItem(childItem, false))
+                        childHasFav = true;
+                }
             }
 
-            bool anyFavInSubtree = IsFavorite(path) || childHasFav;
+            bool anyFavInSubtree = IsFavorite(path) || childHasFav || !hasAnyTvChild;
             item.IsVisible = anyFavInSubtree;
             if (anyFavInSubtree && IsFavorite(path))
                 item.IsExpanded = true;
